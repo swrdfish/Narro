@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Reader</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>AI Reader</h1>
+      <button id="read" class="primary">Read this page</button>
+    </header>
+
+    <section>
+      <label class="field">
+        <span>Voice engine</span>
+        <select id="engine">
+          <optgroup label="Cloud">
+            <option value="openai">OpenAI</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="gemini">Google Gemini</option>
+          </optgroup>
+          <optgroup label="Local">
+            <option value="kokoro">Kokoro — runs in your browser</option>
+            <option value="localServer">Local server (OpenAI-compatible)</option>
+            <option value="system">System voices</option>
+          </optgroup>
+        </select>
+      </label>
+
+      <div class="engine" data-engine="openai">
+        <label class="field"><span>API key</span><input type="password" data-key="openai.apiKey" placeholder="sk-…" autocomplete="off"></label>
+        <label class="field"><span>Model</span><input data-key="openai.model" list="openai-models"></label>
+        <label class="field"><span>Voice</span><select data-key="openai.voice" id="openai-voices"></select></label>
+        <label class="field"><span>Style instructions <em>(gpt-4o models)</em></span><textarea data-key="openai.instructions" rows="2"></textarea></label>
+      </div>
+
+      <div class="engine" data-engine="elevenlabs">
+        <label class="field"><span>API key</span><input type="password" data-key="elevenlabs.apiKey" autocomplete="off"></label>
+        <label class="field"><span>Model</span><input data-key="elevenlabs.model" list="elevenlabs-models"></label>
+        <label class="field"><span>Voice</span><select data-key="elevenlabs.voiceId" id="elevenlabs-voices"></select></label>
+      </div>
+
+      <div class="engine" data-engine="gemini">
+        <label class="field"><span>API key</span><input type="password" data-key="gemini.apiKey" autocomplete="off"></label>
+        <label class="field"><span>Model</span><input data-key="gemini.model" list="gemini-models"></label>
+        <label class="field"><span>Voice</span><select data-key="gemini.voice" id="gemini-voices"></select></label>
+      </div>
+
+      <div class="engine" data-engine="kokoro">
+        <p class="note">Kokoro-82M runs entirely on your machine. The first use downloads the model (~90 MB on CPU, ~300 MB with WebGPU); after that it works offline.</p>
+        <label class="field"><span>Voice</span><select data-key="kokoro.voice" id="kokoro-voices"></select></label>
+        <label class="field"><span>Device</span>
+          <select data-key="kokoro.device">
+            <option value="auto">Auto (WebGPU if available)</option>
+            <option value="webgpu">WebGPU</option>
+            <option value="wasm">CPU (WASM)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="engine" data-engine="localServer">
+        <p class="note">Point at any server exposing <code>/v1/audio/speech</code>, e.g. Kokoro-FastAPI, Orpheus-FastAPI or LocalAI.</p>
+        <label class="field"><span>Base URL</span><input data-key="localServer.baseUrl" placeholder="http://localhost:8880/v1"></label>
+        <label class="field"><span>Model</span><input data-key="localServer.model"></label>
+        <label class="field"><span>Voice</span><input data-key="localServer.voice" list="local-voices"></label>
+        <label class="field"><span>API key <em>(optional)</em></span><input type="password" data-key="localServer.apiKey" autocomplete="off"></label>
+      </div>
+
+      <div class="engine" data-engine="system">
+        <label class="field"><span>Voice</span><select data-key="system.voiceName" id="system-voices"></select></label>
+      </div>
+    </section>
+
+    <section>
+      <label class="field">
+        <span>Speed <output id="rate-out"></output></span>
+        <input type="range" data-key="rate" min="0.5" max="3" step="0.1">
+      </label>
+      <label class="check"><input type="checkbox" data-key="skipIncompleteLast"> Stop before an incomplete last sentence</label>
+      <label class="check"><input type="checkbox" data-key="autoScroll"> Scroll to follow the reading</label>
+    </section>
+
+    <footer>
+      <p>Alt+Shift+R play/pause · Alt+Shift+←/→ previous/next · Alt+Shift+S stop · Alt+click a sentence to jump to it</p>
+      <p id="status" role="status"></p>
+    </footer>
+  </main>
+
+  <datalist id="openai-models"><option value="gpt-4o-mini-tts"><option value="tts-1-hd"><option value="tts-1"></datalist>
+  <datalist id="elevenlabs-models"><option value="eleven_flash_v2_5"><option value="eleven_turbo_v2_5"><option value="eleven_multilingual_v2"><option value="eleven_v3"></datalist>
+  <datalist id="gemini-models"><option value="gemini-2.5-flash-preview-tts"><option value="gemini-2.5-pro-preview-tts"></datalist>
+  <datalist id="local-voices"></datalist>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>
