@@ -117,16 +117,17 @@ async function startReading(tabId, mode = 'toggle') {
 }
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  const action = { 'toggle-reading': 'toggle', 'next-sentence': 'next', 'prev-sentence': 'prev', 'stop-reading': 'stop' }[command];
+  const action = { 'toggle-reading': 'toggle', 'next-sentence': 'next', 'prev-sentence': 'prev', 'stop-reading': 'stop', 'pick-start': 'pick' }[command];
   if (action && tab?.id != null) startReading(tab.id, action).catch(() => {});
 });
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({ id: 'read-from-here', title: 'Read aloud from here', contexts: ['selection'] });
+  chrome.contextMenus.create({ id: 'pick-start', title: 'Choose where to start reading…', contexts: ['page'] });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'read-from-here' && tab?.id != null) {
-    startReading(tab.id, 'from-selection').catch(() => {});
-  }
+  if (tab?.id == null) return;
+  const mode = { 'read-from-here': 'from-selection', 'pick-start': 'pick' }[info.menuItemId];
+  if (mode) startReading(tab.id, mode).catch(() => {});
 });

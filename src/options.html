@@ -9,7 +9,10 @@
   <main>
     <header>
       <h1>AI Reader</h1>
-      <button id="read" class="primary">Read this page</button>
+      <div class="actions">
+        <button id="pick" class="secondary" title="Click any sentence on the page to start there">Start from…</button>
+        <button id="read" class="primary">Read this page</button>
+      </div>
     </header>
 
     <section>
@@ -83,7 +86,7 @@
     </section>
 
     <footer>
-      <p>Alt+Shift+R play/pause · Alt+Shift+←/→ previous/next · Alt+Shift+S stop · Alt+click a sentence to jump to it</p>
+      <p>Alt+Shift+R play/pause · Alt+Shift+←/→ previous/next · Alt+Shift+S stop · Alt+click a sentence to jump to it · Right-click → “Choose where to start reading…”</p>
       <p id="status" role="status"></p>
     </footer>
   </main>

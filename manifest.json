@@ -21,7 +21,8 @@
     "toggle-reading": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "Play / pause reading" },
     "next-sentence": { "suggested_key": { "default": "Alt+Shift+Right" }, "description": "Next sentence" },
     "prev-sentence": { "suggested_key": { "default": "Alt+Shift+Left" }, "description": "Previous sentence" },
-    "stop-reading": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Stop reading" }
+    "stop-reading": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Stop reading" },
+    "pick-start": { "description": "Choose where to start reading" }
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"

@@ -31,6 +31,13 @@ button.primary {
   border: 0; border-radius: 6px; padding: 7px 12px; cursor: pointer;
 }
 button.primary:hover { filter: brightness(1.1); }
+.actions { display: flex; gap: 6px; }
+.actions[hidden] { display: none; }
+button.secondary {
+  font: inherit; font-weight: 600; color: var(--fg); background: var(--field);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+button.secondary:hover { border-color: var(--accent); }
 footer { border-top: 1px solid var(--border); padding-top: 10px; color: var(--muted); font-size: 12px; }
 footer p { margin: 0 0 4px; }
 #status:empty { display: none; }

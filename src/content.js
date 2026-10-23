@@ -16,6 +16,7 @@ function main() {
     status: 'idle', // idle | loading | playing | paused
     rate: 1,
     settings: null,
+    picking: false, // choosing a start sentence with the mouse
   };
 
   // --- Highlighting -----------------------------------------------------------------------------
@@ -24,6 +25,8 @@ function main() {
   style.textContent = `
     ::highlight(ai-reader-sentence) { background-color: #ffe066; color: #111; }
     ::highlight(ai-reader-block) { background-color: rgba(255, 224, 102, 0.22); }
+    ::highlight(ai-reader-pick) { background-color: rgba(96, 165, 250, 0.35); }
+    html.ai-reader-picking, html.ai-reader-picking * { cursor: crosshair !important; }
   `;
   document.head.append(style);
 
@@ -108,11 +111,17 @@ function main() {
     if (!res?.resumed) play(state.idx); // audio was lost (e.g. offscreen page closed while paused)
   }
 
-  async function start(fromSelection = false) {
+  async function prepare() {
     state.settings = await getSettings();
     state.rate = state.settings.rate;
     build();
-    if (!state.sentences.length) return fail('No readable text found on this page.');
+    if (state.sentences.length) return true;
+    fail('No readable text found on this page.');
+    return false;
+  }
+
+  async function start(fromSelection = false) {
+    if (!(await prepare())) return;
     let i = selectionStart();
     if (i < 0) i = fromSelection ? 0 : firstVisibleSentence();
     ui.show();
@@ -162,6 +171,100 @@ function main() {
     getSettings().then((s) => saveSettings({ ...s, rate: state.rate }));
   }
 
+  // --- Choosing where to start -----------------------------------------------------------------
+
+  let hoverFrame = 0; // pending requestAnimationFrame for the hover preview
+
+  async function startPick() {
+    if (state.picking) return cancelPick();
+    // Keep the current reading list while reading so the position stays valid.
+    if (state.status === 'idle' && !(await prepare())) return;
+    state.picking = true;
+    document.documentElement.classList.add('ai-reader-picking');
+    ui.show();
+    ui.setInfo('Click a sentence to start reading · Esc to cancel');
+  }
+
+  function cancelPick() {
+    state.picking = false;
+    cancelAnimationFrame(hoverFrame);
+    hoverFrame = 0;
+    document.documentElement.classList.remove('ai-reader-picking');
+    CSS.highlights?.delete('ai-reader-pick');
+    ui.setInfo('');
+    ui.render();
+  }
+
+  function sentenceAtPoint(x, y) {
+    const pos = document.caretPositionFromPoint?.(x, y);
+    let node = pos?.offsetNode;
+    let offset = pos?.offset;
+    if (!node) {
+      const r = document.caretRangeFromPoint?.(x, y);
+      node = r?.startContainer;
+      offset = r?.startOffset;
+    }
+    if (!node) return -1;
+    const i = sentenceAt(state.sentences, node, offset, { exact: true });
+    if (i < 0) return -1;
+    // The caret APIs snap to the nearest text even far away; require the pointer to be on it.
+    const pad = 3;
+    const onText = [...state.sentences[i].range.getClientRects()].some(
+      (r) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad,
+    );
+    return onText ? i : -1;
+  }
+
+  const onPlayer = (e) => e.target?.id === 'ai-reader-host';
+
+  document.addEventListener('mousemove', (e) => {
+    if (!state.picking || hoverFrame) return;
+    hoverFrame = requestAnimationFrame(() => {
+      hoverFrame = 0;
+      if (!state.picking) return;
+      const i = onPlayer(e) ? -1 : sentenceAtPoint(e.clientX, e.clientY);
+      if (i >= 0) CSS.highlights.set('ai-reader-pick', new Highlight(state.sentences[i].range));
+      else CSS.highlights.delete('ai-reader-pick');
+    });
+  }, { passive: true });
+
+  // While picking, swallow presses so links and page handlers don't fire.
+  for (const type of ['pointerdown', 'mousedown', 'mouseup']) {
+    document.addEventListener(type, (e) => {
+      if (state.picking && !onPlayer(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+  }
+
+  document.addEventListener('click', (e) => {
+    if (onPlayer(e)) return;
+    // Alt+click jumps while the player is open; pick mode takes a plain click.
+    if (!state.picking && !(e.altKey && ui.visible)) return;
+    if (!state.sentences.length) return;
+    const i = sentenceAtPoint(e.clientX, e.clientY);
+    if (state.picking) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (i < 0) return; // keep picking until a sentence is hit
+      cancelPick();
+    } else if (i < 0) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    play(i);
+  }, true);
+
+  document.addEventListener('keydown', (e) => {
+    if (state.picking && e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      cancelPick();
+    }
+  }, true);
+
   function setStatus(status) {
     state.status = status;
     ui.render();
@@ -175,7 +278,12 @@ function main() {
       return;
     }
     if (msg.type === 'control') {
-      const actions = { toggle, next, prev, stop: () => { stop(); ui.hide(); }, 'from-selection': () => { stop(); start(true); } };
+      const actions = {
+        toggle, next, prev,
+        pick: startPick,
+        stop: () => { cancelPick(); stop(); ui.hide(); },
+        'from-selection': () => { stop(); start(true); },
+      };
       actions[msg.action]?.();
       sendResponse({ ok: true });
       return;
@@ -221,28 +329,14 @@ function main() {
     });
   });
 
-  // Alt+click any sentence to jump there.
-  document.addEventListener('click', (e) => {
-    if (!e.altKey || !ui.visible || !state.sentences.length) return;
-    const pos = document.caretPositionFromPoint?.(e.clientX, e.clientY);
-    const node = pos?.offsetNode ?? document.caretRangeFromPoint?.(e.clientX, e.clientY)?.startContainer;
-    const offset = pos?.offset ?? 0;
-    if (!node) return;
-    const i = sentenceAt(state.sentences, node, offset);
-    if (i >= 0) {
-      e.preventDefault();
-      e.stopPropagation();
-      play(i);
-    }
-  }, true);
-
   // --- Floating player --------------------------------------------------------------------------
 
   const ui = createPlayer({
     onToggle: toggle,
     onPrev: prev,
     onNext: next,
-    onClose: () => { stop(); ui.hide(); },
+    onClose: () => { cancelPick(); stop(); ui.hide(); },
+    onPick: startPick,
     onSlower: () => setRate(state.rate - 0.1),
     onFaster: () => setRate(state.rate + 0.1),
     onSettings: () => send({ type: 'open-options' }),
@@ -277,6 +371,7 @@ function createPlayer(h) {
       button.play { width: 38px; height: 38px; background: var(--accent); color: #fff; }
       button.play:hover { filter: brightness(1.1); background: var(--accent); }
       button.small { width: 24px; height: 24px; font-size: 15px; }
+      button.pick.active { background: var(--accent); color: #fff; }
       svg { width: 18px; height: 18px; fill: currentColor; }
       .rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
       .pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 6px; min-width: 56px; text-align: center; }
@@ -298,6 +393,7 @@ function createPlayer(h) {
       <button class="small faster" title="Faster">+</button>
       <span class="sep"></span>
       <span class="info"></span>
+      <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
       <button class="settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
       <button class="close" title="Stop and close"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1.4 0)"/></svg></button>
     </div>`;
@@ -316,6 +412,7 @@ function createPlayer(h) {
   $('.slower').onclick = h.onSlower;
   $('.faster').onclick = h.onFaster;
   $('.settings').onclick = h.onSettings;
+  $('.pick').onclick = h.onPick;
 
   const ui = {
     visible: false,
@@ -335,6 +432,7 @@ function createPlayer(h) {
       $('.play').title = icon === 'pause' ? 'Pause' : 'Play';
       $('.pos').textContent = s.sentences.length ? `${s.idx + 1} / ${s.sentences.length}` : '';
       $('.rate').textContent = `${s.rate.toFixed(1)}×`;
+      $('.pick').classList.toggle('active', s.picking);
       if (s.settings) $('.settings').title = `Settings — voice: ${ENGINES[s.settings.engine]?.label}`;
     },
     setInfo(text, isError = false) {

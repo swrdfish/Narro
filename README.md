@@ -9,7 +9,8 @@ A Chrome extension that reads web pages aloud with modern AI voices, highlightin
   - **Kokoro-82M in the browser**: runs on WebGPU or WASM in a worker. No server needed, and it works offline after a one-time ~90 MB download.
   - **Local server**: any OpenAI-compatible `/v1/audio/speech` endpoint, such as [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI), Orpheus-FastAPI or LocalAI.
   - **System voices** via `chrome.tts`.
-- **Navigation**: previous/next sentence, pause/resume, Alt+click any sentence to jump to it, and "Read aloud from here" on a text selection.
+- **Navigation**: previous/next sentence and pause/resume.
+- **Choose where to start**: use the crosshair button in the player, **Start from…** in the popup, or right-click → *Choose where to start reading…*. Hover to preview a sentence, click it to start reading from there, or press Esc to cancel. Clicks are captured while choosing, so clicking a sentence inside a link doesn't follow the link. You can also Alt+click any sentence while the player is open, or select text and pick *Read aloud from here*.
 - **Stops before an incomplete last sentence**: if the page ends mid-sentence (paginated books, truncated articles), the reader stops after the last complete sentence. It also skips trailing UI text such as "Next chapter". You can turn this off.
 - **Highlighting**: the current sentence and its paragraph are highlighted with the CSS Custom Highlight API, so the page DOM isn't modified. The page auto-scrolls to follow along.
 - Speed control from 0.5× to 3× with pitch preserved.

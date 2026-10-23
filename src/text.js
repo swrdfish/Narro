@@ -193,8 +193,11 @@ export function buildSentences(root, { lang = 'en', skipIncompleteLast = true } 
   return sentences;
 }
 
-/** Index of the sentence containing (node, offset), or -1. */
-export function sentenceAt(sentences, node, offset) {
+/**
+ * Index of the sentence containing (node, offset), or -1.
+ * Unless `exact`, falls back to the first sentence after the point.
+ */
+export function sentenceAt(sentences, node, offset, { exact = false } = {}) {
   for (let i = 0; i < sentences.length; i++) {
     const r = sentences[i].range;
     try {
@@ -203,6 +206,7 @@ export function sentenceAt(sentences, node, offset) {
       // Different document/detached node.
     }
   }
+  if (exact) return -1;
   // Fall back to the first sentence that starts after the point.
   for (let i = 0; i < sentences.length; i++) {
     try {

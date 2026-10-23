@@ -86,9 +86,12 @@ async function init() {
   }
   $('#rate-out').textContent = `${settings.rate.toFixed(1)}×`;
 
-  // The read button only makes sense in the toolbar popup, where the active tab is the page.
-  $('#read').hidden = !location.search.includes('popup');
-  $('#read').onclick = async () => {
+  // The read buttons only make sense in the toolbar popup, where the active tab is the page.
+  $('.actions').hidden = !location.search.includes('popup');
+  $('#read').onclick = () => startOnPage('toggle');
+  $('#pick').onclick = () => startOnPage('pick');
+
+  async function startOnPage(mode) {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || /^(chrome|edge|about|chrome-extension):/.test(tab.url || '')) {
       setStatus("Chrome doesn't allow reading this page.", true);
@@ -96,10 +99,10 @@ async function init() {
     }
     clearTimeout(saveTimer);
     await saveSettings(settings);
-    const res = await chrome.runtime.sendMessage({ type: 'start-reading', tabId: tab.id, mode: 'toggle' });
+    const res = await chrome.runtime.sendMessage({ type: 'start-reading', tabId: tab.id, mode });
     if (res?.error) setStatus(res.error, true);
     else window.close();
-  };
+  }
 
   showEngine();
 }
