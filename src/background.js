@@ -32,6 +32,24 @@ async function claimTab(tabId) {
   if (readerTab != null && readerTab !== tabId) toTab(readerTab, { type: 'tts-event', event: 'preempted' });
 }
 
+async function stopSpeech() {
+  chrome.tts.stop();
+  await toOffscreen({ cmd: 'stop' }, { create: false });
+}
+
+// The reading page holds a port open while reading. Chrome closes it when the page is refreshed,
+// navigated away or closed, so the audio stops with it instead of playing on in the background.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'reader' || !port.sender?.tab) return;
+  const tabId = port.sender.tab.id;
+  port.onDisconnect.addListener(async () => {
+    const { readerTab } = await chrome.storage.session.get('readerTab');
+    if (readerTab !== tabId) return; // another tab is reading now
+    await chrome.storage.session.remove('readerTab');
+    await stopSpeech();
+  });
+});
+
 // --- System voices (chrome.tts) -----------------------------------------------------------------
 
 function systemSpeak(tabId, seq, text, settings) {
@@ -84,8 +102,7 @@ async function handleFromTab(msg, tabId) {
       await toOffscreen({ cmd: 'rate', rate: msg.rate }, { create: false });
       return { ok: true };
     case 'stop':
-      chrome.tts.stop();
-      await toOffscreen({ cmd: 'stop' }, { create: false });
+      await stopSpeech();
       return { ok: true };
     case 'open-options':
       chrome.runtime.openOptionsPage();

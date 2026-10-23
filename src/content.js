@@ -136,8 +136,25 @@ function main() {
 
   // Speaks sentences from `i` as one clip (a chunk); the highlight follows playback progress.
   // `first`: starting or jumping, so begin with a single sentence for a quick start.
+  // Open while reading: when this page is refreshed or closed, Chrome closes the port and the
+  // background stops the audio. Reconnects if the background restarted in the meantime.
+  let lifeline = null;
+  function holdLifeline() {
+    if (lifeline) return;
+    try {
+      lifeline = chrome.runtime.connect({ name: 'reader' });
+    } catch {
+      return; // extension reloaded; nothing to keep alive
+    }
+    lifeline.onDisconnect.addListener(() => {
+      lifeline = null;
+      if (state.status !== 'idle' || state.preparing) holdLifeline();
+    });
+  }
+
   async function play(i, { first = true } = {}) {
     if (state.preparing) return;
+    holdLifeline();
     if (kindle && i === state.sentences.length && i > 0 && state.settings?.autoTurnPages) return nextKindlePage();
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
