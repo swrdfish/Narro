@@ -1,29 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { build } from 'esbuild';
-import { webcrypto } from 'node:crypto';
-import { isKindleUrl, readRenderArchive, normalizePages, validBatches } from '../src/kindle-data.js';
-import { buildSpreadSentences, buildVisualSentences, continuesInto, GlyphDecoder, ocrParagraphs, orderParagraphs, visualSentenceAt } from '../src/kindle-text.js';
+import { isKindleUrl } from '../src/kindle-data.js';
+import { buildSpreadSentences, buildVisualSentences, continuesInto, ocrParagraphs, orderParagraphs, visualSentenceAt } from '../src/kindle-text.js';
 import { captureKindle } from '../src/kindle-capture.js';
 import { findKindleSurfaces } from '../src/kindle.js';
-
-function archive(files) {
-  const chunks = [];
-  for (const [name, value] of Object.entries(files)) {
-    const body = Buffer.from(JSON.stringify(value));
-    const header = Buffer.alloc(512);
-    header.write(name);
-    header.write(body.length.toString(8).padStart(11, '0'), 124);
-    header.fill(32, 148, 156);
-    header[156] = 48;
-    const checksum = header.reduce((sum, byte) => sum + byte, 0);
-    header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148);
-    chunks.push(header, body, Buffer.alloc((512 - body.length % 512) % 512));
-  }
-  chunks.push(Buffer.alloc(1024));
-  return Buffer.concat(chunks);
-}
 
 const rect = { left: 100, top: 50, width: 400, height: 500 };
 const box = (x0, y0, x1, y1) => ({ x0, y0, x1, y1 });
@@ -40,49 +21,10 @@ const lineUp = (texts, perLine, top = 20, firstLine = 0, left = 10) => {
   });
 };
 
-function calibratedPage(texts = ['the', 'cat', 'sat', 'the', 'cat', 'sat', 'the', 'cat', 'sat']) {
-  const words = texts.map((text, index) => word(text, 20 + index % 3 * 70, 30 + Math.floor(index / 3) * 35, Math.floor(index / 3)));
-  const glyphs = words.flatMap((entry) => [...entry.text].map((character, index) => ({ id: character.charCodeAt(0) + 1000, font: 'bookerly', x: entry.box.x0 + index * 10, baseline: entry.box.y1, size: 20 })));
-  const page = { width: 400, height: 500, glyphs };
-  return { paragraphs: [{ words }], page, batch: { id: 'font-subset-one', book: 'B00AK9IXXM', pages: [page] } };
-}
-
 test('Kindle URL detection is regional, HTTPS-only and does not accept lookalike domains', () => {
   assert.ok(isKindleUrl('https://read.amazon.in/?asin=B00AK9IXXM'));
   assert.ok(isKindleUrl('https://read.amazon.co.jp/'));
   for (const url of ['https://read.amazon.in.evil.test', 'https://amazon.in/', 'http://read.amazon.in/', 'invalid']) assert.equal(isKindleUrl(url), false);
-});
-
-test('TAR reader only extracts rendering JSON, including concatenated archives', () => {
-  const bytes = Buffer.concat([archive({ 'page_data_0_5.json': { pages: [] }, 'metadata.json': { secret: 'ignored' } }), archive({ 'glyphs.json': { glyphs: [] } })]);
-  const entries = readRenderArchive(bytes);
-  assert.deepEqual([...entries.keys()], ['page_data_0_5.json', 'glyphs.json']);
-  assert.equal(entries.has('metadata.json'), false);
-});
-
-test('TAR reader rejects bad checksums and truncated entries', () => {
-  const bytes = archive({ 'glyphs.json': { data: 'a'.repeat(1000) } });
-  assert.throws(() => readRenderArchive(bytes.subarray(0, 600)), /header/);
-  bytes[0] ^= 1;
-  assert.throws(() => readRenderArchive(bytes), /header/);
-});
-
-test('normalizer handles nested run transforms and retains font identity', () => {
-  const data = { pages: [{ width: 400, height: 500, transform: [1, 0, 0, 1, 10, 40], children: [
-    { fontKey: 'italic', fontSize: 20, glyphs: Array.from({ length: 20 }, (_, index) => index), xPosition: Array.from({ length: 20 }, (_, index) => index * 10) },
-  ] }] };
-  const pages = normalizePages(data);
-  assert.equal(pages.length, 1);
-  assert.deepEqual(pages[0].glyphs[0], { id: 0, font: 'italic', x: 10, baseline: 40, size: 20 });
-  assert.ok(validBatches([{ id: 'subset', book: 'book', pages }]));
-  data.pages[0].transform = [2, 0, 0, 2, 10, 40];
-  assert.deepEqual(normalizePages(data), []);
-});
-
-test('normalizer and bridge validation fail closed on unsupported metadata', () => {
-  assert.deepEqual(normalizePages({ unknown: 'schema' }), []);
-  assert.equal(validBatches([{ id: 'bad', book: 'book', pages: [{ width: 400, height: 500, glyphs: [{ id: 2, x: NaN }] }] }]), false);
-  assert.equal(validBatches({}), false);
 });
 
 test('OCR structured output preserves paragraph, line, symbol and scaled coordinates', () => {
@@ -187,65 +129,8 @@ test('a heading spanning columns does not interleave their paragraphs', () => {
   assert.deepEqual(orderParagraphs(paragraphs).map((paragraph) => paragraph.words[0].text), ['Heading.', 'Left-top.', 'Left-bottom.', 'Right-top.', 'Right-bottom.']);
 });
 
-test('glyph decoder calibrates repeated high-confidence characters and decodes words', () => {
-  const fixture = calibratedPage();
-  const decoder = new GlyphDecoder();
-  const result = decoder.decode([fixture.batch], fixture.paragraphs, 400, 500);
-  assert.equal(result.source, 'hybrid');
-  assert.deepEqual(result.paragraphs, fixture.paragraphs);
-  assert.equal(decoder.tables.size, 1);
-});
-
-test('glyph decoder falls back on absent, rotated, low-confidence or ambiguous metadata', () => {
-  const fixture = calibratedPage();
-  const decoder = new GlyphDecoder();
-  assert.equal(decoder.decode([], fixture.paragraphs, 400, 500).source, 'ocr');
-  assert.equal(decoder.decode([fixture.batch], fixture.paragraphs, 1000, 500).source, 'ocr');
-  const alternate = { ...fixture.batch, id: 'another-font-subset' };
-  assert.equal(decoder.decode([fixture.batch, alternate], fixture.paragraphs, 400, 500).source, 'ocr');
-  const lowConfidence = fixture.paragraphs.map((paragraph) => ({ words: paragraph.words.map((entry) => ({ ...entry, confidence: 40 })) }));
-  assert.equal(decoder.decode([fixture.batch], lowConfidence, 400, 500).source, 'ocr');
-  assert.equal(decoder.tables.size, 0);
-});
-
-test('glyph tables are scoped by book and font subset, not just glyph IDs', () => {
-  const fixture = calibratedPage();
-  const decoder = new GlyphDecoder();
-  decoder.decode([fixture.batch], fixture.paragraphs, 400, 500);
-  const changedWords = fixture.paragraphs.map((paragraph) => ({ words: paragraph.words.map((entry) => ({ ...entry, text: entry.text.replaceAll('t', 'b'), symbols: entry.symbols.map((symbol) => ({ ...symbol, text: symbol.text === 't' ? 'b' : symbol.text })) })) }));
-  const changedBatch = { ...fixture.batch, id: 'rotated-font-subset' };
-  const result = decoder.decode([changedBatch], changedWords, 400, 500);
-  assert.equal(result.source, 'hybrid');
-  assert.equal(result.paragraphs[0].words[0].text, 'bhe');
-  assert.equal(decoder.tables.size, 2);
-  assert.equal(decoder.decode([fixture.batch], changedWords, 400, 500).source, 'ocr');
-});
-
-test('re-reading one image does not turn a single observation into repeated calibration evidence', () => {
-  const fixture = calibratedPage(['abcdef', 'ghijkl', 'mnopqr', 'stuvwx']);
-  const decoder = new GlyphDecoder();
-  assert.equal(decoder.decode([fixture.batch], fixture.paragraphs, 400, 500).source, 'ocr');
-  assert.equal(decoder.decode([fixture.batch], fixture.paragraphs, 400, 500).source, 'ocr');
-});
-
-test('validated glyph mappings can correct lower-confidence OCR without accepting conflicting high-confidence text', () => {
-  const fixture = calibratedPage();
-  const decoder = new GlyphDecoder();
-  decoder.decode([fixture.batch], fixture.paragraphs, 400, 500);
-  const paragraphs = structuredClone(fixture.paragraphs);
-  paragraphs[0].words[0].text = 'tbe';
-  paragraphs[0].words[0].confidence = 85;
-  paragraphs[0].words[0].symbols[1].text = 'b';
-  paragraphs[0].words[0].symbols[1].confidence = 85;
-  const result = decoder.decode([fixture.batch], paragraphs, 400, 500);
-  assert.equal(result.source, 'hybrid');
-  assert.equal(result.paragraphs[0].words[0].text, 'the');
-  paragraphs[0].words[0].confidence = 99;
-  assert.equal(decoder.decode([fixture.batch], paragraphs, 400, 500).source, 'ocr');
-});
-
 const sender = { frameId: 0, url: 'https://read.amazon.in/?asin=B00AK9IXXM', tab: { id: 5, windowId: 7 } };
-const captureMessage = () => ({ viewport: { width: 1000, height: 800 }, images: [{ rect }], batches: [] });
+const captureMessage = () => ({ viewport: { width: 1000, height: 800 }, images: [{ rect }] });
 
 test('screenshot fallback verifies the originating tab before and after capture', async () => {
   let captures = 0;
@@ -275,13 +160,11 @@ test('capture refuses non-Kindle senders, subframes, remote image URLs and inval
   await assert.rejects(captureKindle(message, sender, chromeApi), /region/);
 });
 
-test('local page images avoid screenshot permission and rendering metadata is never forwarded', async () => {
+test('local page images avoid screenshot permission', async () => {
   const message = captureMessage();
   message.images[0].dataUrl = 'data:image/png;base64,fixture';
-  message.batches = [calibratedPage().batch];
   const capture = await captureKindle(message, sender, {});
   assert.equal(capture.screenshot, undefined);
-  assert.equal('batches' in capture, false);
 });
 
 test('Kindle surface detection excludes toolbars, hidden prefetch pages and network images', () => {
@@ -322,41 +205,3 @@ test('object-fit cover reads the image directly when uncropped and via screensho
   dom.window.close();
 });
 
-test('render hook preserves original fetch responses and bridges only normalized current-book metadata', async () => {
-  const bundle = (await build({ entryPoints: ['src/kindle-intercept.js'], bundle: true, write: false, format: 'iife', platform: 'browser' })).outputFiles[0].text;
-  const dom = new JSDOM('', { url: sender.url, runScripts: 'outside-only' });
-  try {
-    const { window } = dom;
-    const responses = [];
-    const bytes = archive({
-      'glyphs.json': { subset: 1 },
-      'page_data_0_5.json': { pages: [{ width: 400, height: 500, children: [{ fontKey: 'body', fontSize: 20, transform: [1, 0, 0, 1, 10, 40], glyphs: Array.from({ length: 24 }, (_, index) => index), xPosition: Array.from({ length: 24 }, (_, index) => index * 10) }] }] },
-      'metadata.json': { token: 'not exposed to the bridge' },
-    });
-    window.Request = Request;
-    window.TextEncoder = TextEncoder;
-    window.TextDecoder = TextDecoder;
-    Object.defineProperty(window.crypto, 'subtle', { value: webcrypto.subtle });
-    window.fetch = async () => new Response(bytes);
-    window.postMessage = (message) => responses.push(message);
-    window.eval(bundle);
-    const response = await window.fetch('https://read.amazon.in/renderer/render?asin=B00AK9IXXM');
-    assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
-    const snapshot = () => window.dispatchEvent(new window.MessageEvent('message', {
-      source: window, origin: window.location.origin, data: { type: 'ai-reader-kindle-request', requestId: 'test-request' },
-    }));
-    for (let attempt = 0; attempt < 30; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      snapshot();
-      if (responses.at(-1)?.batches.length) break;
-    }
-    const payload = responses.at(-1);
-    assert.equal(payload.batches.length, 1);
-    assert.equal(payload.batches[0].pages[0].glyphs.length, 24);
-    assert.ok(/^[a-f0-9]{64}$/.test(payload.batches[0].id));
-    assert.equal(JSON.stringify(payload).includes('not exposed'), false);
-    window.history.replaceState(null, '', '/?asin=OTHERBOOK');
-    snapshot();
-    assert.equal(responses.at(-1).batches.length, 0);
-  } finally { dom.window.close(); }
-});

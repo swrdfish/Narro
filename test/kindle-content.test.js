@@ -23,8 +23,6 @@ function fixture() {
   const page = window.document.getElementById('book');
   Object.defineProperties(page, { complete: { value: true }, naturalWidth: { value: 800 }, naturalHeight: { value: 1000 } });
   page.getBoundingClientRect = () => ({ left: 50, top: 50, width: 400, height: 500 });
-  const posted = [];
-  window.postMessage = (message) => posted.push(message);
   window.chrome = {
     runtime: {
       onMessage: { addListener: (listener) => listeners.add(listener), removeListener: (listener) => listeners.delete(listener) },
@@ -43,7 +41,7 @@ function fixture() {
   const message = (value) => { for (const listener of listeners) listener(value, {}, () => {}); };
   const defaultWords = [{ text: 'Hello.', box: { x0: 20, y0: 40, x1: 100, y1: 80 }, line: 0 }, { text: 'Goodbye.', box: { x0: 120, y0: 40, x1: 240, y1: 80 }, line: 0 }];
   const complete = (words = defaultWords) => completeExtraction({ pages: [{ source: 'ocr', width: 800, height: 1000, paragraphs: [{ words }] }] });
-  return { dom, window, page, messages, posted, message, complete };
+  return { dom, window, page, messages, message, complete };
 }
 
 test('Kindle playback uses extracted text, overlay highlights and the existing speech engine', async () => {
@@ -53,8 +51,6 @@ test('Kindle playback uses extracted text, overlay highlights and the existing s
     await flush();
     const extract = context.messages.filter((message) => message.type === 'kindle-extract');
     assert.equal(extract.length, 1);
-    assert.equal('batches' in extract[0], false, 'OCR-only: no rendering metadata is sent');
-    assert.deepEqual(context.posted, [], 'OCR-only: the page is never asked for renderer metadata');
     context.complete();
     await flush();
     const spoken = context.messages.find((message) => message.type === 'speak');

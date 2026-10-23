@@ -1,4 +1,4 @@
-import { isKindleUrl, MAX_BRIDGE_BYTES, validBatches } from './kindle-data.js';
+import { isKindleUrl } from './kindle-data.js';
 import { buildSpreadSentences, visualSentenceAt } from './kindle-text.js';
 
 export { isKindleUrl, visualSentenceAt };
@@ -83,32 +83,6 @@ function imageData(surface, thumbnail = false) {
 
 function signature(surfaces) {
   return JSON.stringify([location.href, innerWidth, innerHeight, ...surfaces.map((surface) => [surface.rect, surface.element.currentSrc || surface.element.src || '', surface.element.tagName === 'CANVAS' ? imageData(surface, true) : ''])]);
-}
-
-// Bridge to the renderer-metadata hook (kindle-intercept.js). Not called: Kindle reading is OCR-only.
-function readMetadata(signal) {
-  return new Promise((resolve) => {
-    const requestId = crypto.randomUUID();
-    const finish = (batches = []) => {
-      clearTimeout(timeout);
-      window.removeEventListener('message', receive);
-      signal.removeEventListener('abort', abort);
-      resolve(batches);
-    };
-    const abort = () => finish();
-    const receive = (event) => {
-      if (event.source !== window || event.origin !== location.origin || event.data?.type !== 'ai-reader-kindle-data' || event.data.requestId !== requestId) return;
-      try {
-        const batches = event.data.batches;
-        if (JSON.stringify(batches).length <= MAX_BRIDGE_BYTES && validBatches(batches)) finish(batches);
-      } catch {}
-    };
-    const timeout = setTimeout(finish, 400);
-    window.addEventListener('message', receive);
-    signal.addEventListener('abort', abort, { once: true });
-    window.postMessage({ type: 'ai-reader-kindle-request', requestId }, location.origin);
-    if (signal.aborted) finish();
-  });
 }
 
 // Kindle's own "next page" control; the label is localized on some storefronts, the id is not.

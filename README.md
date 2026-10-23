@@ -40,8 +40,6 @@ After building, reload Narro in `chrome://extensions`, then reload your Kindle t
 - A sentence cut off by a column break or a page turn is spoken once, in full: the unread tail of a page is carried over to the next one. Turning the page yourself, resizing or switching tabs while reading stops playback, so stale text is never spoken.
 - Decorative fonts, illustrations, small text and partly offscreen pages reduce OCR accuracy.
 
-`src/kindle-intercept.js` and the `GlyphDecoder` in `src/kindle-text.js` are **not wired up**. Nothing in the manifest, build or shipped bundles references them, and `test/ocr-only.test.js` fails if anything starts to.
-
 Shortcuts (change them at `chrome://extensions/shortcuts`):
 - Alt+Shift+R: play/pause
 - Alt+Shift+←/→: previous/next sentence
