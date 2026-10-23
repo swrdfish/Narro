@@ -26,7 +26,9 @@ Privacy: on-device voices keep text on your computer. If you choose a cloud voic
 ## Assets to upload
 
 - `narro-promo-440x280.png` — required small promo tile (440×280).
-- `narro-reading-1280x800.png` — required product screenshot (1280×800).
+- `narro-reading-1280x800.png` — product screenshot 1 (1280×800): reading with sentence highlighting.
+- `narro-voices-1280x800.png` — product screenshot 2 (1280×800): the popup and voice choices.
+- `narro-marquee-1400x560.png` — marquee promo tile (1400×560).
 - `../icons/icon-128.png` — store icon (128×128).
 
 ## Privacy tab
