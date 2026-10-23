@@ -5,7 +5,7 @@ name: Landing page
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths: ['site/**', 'icons/**', 'docs/**', 'scripts/build-site.mjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
