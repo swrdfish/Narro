@@ -2,7 +2,6 @@
 const demo = document.querySelector('.demo');
 const sentences = [...demo.querySelectorAll('.s')];
 const counter = demo.querySelector('.count .now');
-const toggle = demo.querySelector('.demo-toggle');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 let index = 0;
@@ -23,24 +22,11 @@ function next() {
   timer = setTimeout(next, duration(sentences[index]));
 }
 
-function play() {
-  demo.classList.remove('paused');
-  toggle.textContent = 'Pause demo';
-  toggle.setAttribute('aria-pressed', 'false');
-  clearTimeout(timer);
+// Respect reduced motion: a still frame, shown paused.
+if (reducedMotion.matches) {
+  show(1);
+  demo.classList.add('paused');
+} else {
+  show(0);
   timer = setTimeout(next, duration(sentences[index]));
 }
-
-function pause() {
-  demo.classList.add('paused');
-  toggle.textContent = 'Play demo';
-  toggle.setAttribute('aria-pressed', 'true');
-  clearTimeout(timer);
-}
-
-toggle.addEventListener('click', () => (demo.classList.contains('paused') ? play() : pause()));
-
-// Respect reduced motion: a still frame, which the button can still start.
-show(reducedMotion.matches ? 1 : 0);
-if (reducedMotion.matches) pause();
-else play();
