@@ -70,17 +70,8 @@ code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-si
 .top nav a:hover, .bottom nav a:hover { color: var(--fg); text-decoration: underline; }
 .top nav { align-items: center; }
 
-/* GitHub button: mark plus live star count, like GitHub's own Star button. */
-.top nav a.gh {
-  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px;
-  color: var(--fg); border: 1px solid var(--border); border-radius: 8px; font-weight: 700; font-size: 14px;
-}
-.top nav a.gh:hover { background: var(--panel); text-decoration: none; }
-.gh svg { display: block; fill: currentColor; }
-.gh-mark { width: 18px; height: 18px; }
-.gh-stars { display: inline-flex; align-items: center; gap: 4px; padding-left: 8px; border-left: 1px solid var(--border); font-variant-numeric: tabular-nums; }
-.gh-stars[hidden] { display: none; }
-.gh-stars svg { width: 14px; height: 14px; fill: #e3b341; }
+/* GitHub's Star button; it renders itself into this wrapper. Height is reserved so the header doesn't jump. */
+.gh { display: inline-flex; align-items: center; min-height: 28px; line-height: 0; }
 
 .bottom {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
@@ -203,7 +194,7 @@ h1 {
   .popup-shot { width: min(330px, 100%); }
 }
 @media (max-width: 560px) {
-  .top nav a:not(.gh) { display: none; }
+  .top nav > a { display: none; }
   .demo-page { padding: 20px 20px 92px; font-size: 16px; }
   .player .voice, .player .grip { display: none; }
 }
