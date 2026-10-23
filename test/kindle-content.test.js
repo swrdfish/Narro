@@ -8,7 +8,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 function fixture({ store = { settings: { engine: 'system' } } } = {}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body><img id="book" src="blob:https://read.amazon.in/first-page"></body></html>', {
-    url: 'https://read.amazon.in/?asin=B00AK9IXXM', runScripts: 'outside-only', pretendToBeVisual: true,
+    url: 'https://read.amazon.in/?asin=B0EXAMPLE1', runScripts: 'outside-only', pretendToBeVisual: true,
   });
   const { window } = dom;
   const messages = [];

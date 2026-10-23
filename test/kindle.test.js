@@ -22,7 +22,7 @@ const lineUp = (texts, perLine, top = 20, firstLine = 0, left = 10) => {
 };
 
 test('Kindle URL detection is regional, HTTPS-only and does not accept lookalike domains', () => {
-  assert.ok(isKindleUrl('https://read.amazon.in/?asin=B00AK9IXXM'));
+  assert.ok(isKindleUrl('https://read.amazon.in/?asin=B0EXAMPLE1'));
   assert.ok(isKindleUrl('https://read.amazon.co.jp/'));
   for (const url of ['https://read.amazon.in.evil.test', 'https://amazon.in/', 'http://read.amazon.in/', 'invalid']) assert.equal(isKindleUrl(url), false);
 });
@@ -145,7 +145,7 @@ test('a heading spanning columns does not interleave their paragraphs', () => {
   assert.deepEqual(orderParagraphs(paragraphs).map((paragraph) => paragraph.words[0].text), ['Heading.', 'Left-top.', 'Left-bottom.', 'Right-top.', 'Right-bottom.']);
 });
 
-const sender = { frameId: 0, url: 'https://read.amazon.in/?asin=B00AK9IXXM', tab: { id: 5, windowId: 7 } };
+const sender = { frameId: 0, url: 'https://read.amazon.in/?asin=B0EXAMPLE1', tab: { id: 5, windowId: 7 } };
 const captureMessage = () => ({ viewport: { width: 1000, height: 800 }, images: [{ rect }] });
 
 test('screenshot fallback verifies the originating tab before and after capture', async () => {

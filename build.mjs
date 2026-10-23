@@ -20,6 +20,7 @@ cpSync('node_modules/tesseract.js/LICENSE.md', `${out}/ocr/TESSERACT-LICENSE.md`
 cpSync('node_modules/tesseract.js-core/LICENSE', `${out}/ocr/CORE-LICENSE`);
 
 cpSync('manifest.json', `${out}/manifest.json`);
+for (const f of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) cpSync(f, `${out}/${f}`);
 cpSync('icons', `${out}/icons`, { recursive: true });
 cpSync('src/fonts', `${out}/fonts`, { recursive: true });
 for (const f of ['offscreen.html', 'options.html', 'options.css']) cpSync(`src/${f}`, `${out}/${f}`);
