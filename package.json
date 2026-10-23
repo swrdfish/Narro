@@ -24,6 +24,8 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "package": "npm run build && cd dist && zip -r -FS ../narro-$npm_package_version.zip .",
+    "version": "node scripts/sync-version.mjs && git add manifest.json",
     "watch": "node build.mjs --watch",
     "test": "node --test test/*.test.js",
     "site": "node scripts/build-site.mjs",

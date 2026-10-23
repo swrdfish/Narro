@@ -1,0 +1,40 @@
+name: Release
+
+# Pushing a version tag (npm version patch|minor|major, then git push --follow-tags) tests and
+# packages the extension and publishes a GitHub release with the ZIP attached.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check the tag matches the version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          manifest="$(node -p "require('./manifest.json').version")"
+          if [ "$tag" != "$pkg" ] || [ "$tag" != "$manifest" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json ($pkg) and manifest.json ($manifest)"
+            exit 1
+          fi
+      - run: npm test
+      - run: npm run package
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" "narro-$version.zip" \
+            --title "Narro $version" --generate-notes --verify-tag
