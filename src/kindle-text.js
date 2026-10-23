@@ -136,11 +136,17 @@ export function continuesInto(before, after) {
   return CONTINUING_WORDS.has(prev.split(/\s+/).pop().toLowerCase());
 }
 
+// Text that carries on a sentence from before it: a lowercase start or continuing punctuation.
+// (Digits are excluded: a page can open with a year.)
+const CONTINUATION_START = /^[\p{Ll},;:)\]’”—–-]/u;
+
 /**
  * Builds the reading list for one or more page images shown side by side.
  * pages: [{ paragraphs, rect, width, height }] in reading order.
  * `carry`: unspoken text cut off at the end of the previous page; it is spoken with its continuation.
  * `tail`: if given, receives the text dropped by `skipIncompleteLast`, to carry onto the next page.
+ * `skipIncompleteLast` also drops a fragment at the start of the page when nothing was carried onto
+ * it (e.g. the first page read), so reading starts at the first complete sentence.
  */
 export function buildSpreadSentences(pages, { lang = 'en', skipIncompleteLast = true, carry = '', tail } = {}) {
   // Ordered paragraphs as lists of words with viewport rects.
@@ -160,6 +166,7 @@ export function buildSpreadSentences(pages, { lang = 'en', skipIncompleteLast = 
   // Runs of text that sentences are split from; a run spans paragraphs that continue each other.
   const runs = [];
   let run = null;
+  let carried = false;
   const append = (words, index) => {
     for (const word of words) {
       const previous = run.pieces.at(-1);
@@ -180,6 +187,7 @@ export function buildSpreadSentences(pages, { lang = 'en', skipIncompleteLast = 
     if (!run) {
       run = { text: '', pieces: [] };
       if (index === 0 && carry && continuesInto(carry, textOf(words))) {
+        carried = true;
         run.text = carry.trim();
         run.pieces.push({ start: 0, end: run.text.length, rect: null, line: -1, paragraph: -1 });
       }
@@ -205,6 +213,9 @@ export function buildSpreadSentences(pages, { lang = 'en', skipIncompleteLast = 
         blockRects: pieces.filter((piece) => piece.rect && blocks.has(piece.paragraph)).map((piece) => piece.rect),
       });
     }
+  }
+  if (skipIncompleteLast && !carried && sentences.length > 1 && CONTINUATION_START.test(sentences[0].text)) {
+    sentences.shift(); // the end of a sentence that began on a page we haven't read
   }
   if (skipIncompleteLast) {
     let keep = sentences.length;

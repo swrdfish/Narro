@@ -94,6 +94,22 @@ test('text cut off at a page turn is carried and spoken with its continuation', 
   assert.equal(sentences[0].rects.length, 3, 'only words visible on this page are highlighted');
 });
 
+test('a fragment at the top of a page is skipped when nothing was carried onto it', () => {
+  const page = [{ words: lineUp(['harbor', 'was', 'empty.', 'Gulls', 'circled', 'the', 'masts.'], 4) }];
+  assert.deepEqual(buildVisualSentences(page, rect, 800, 1000).map((sentence) => sentence.text), ['Gulls circled the masts.']);
+  assert.deepEqual(buildVisualSentences(page, rect, 800, 1000, { skipIncompleteLast: false }).map((sentence) => sentence.text),
+    ['harbor was empty.', 'Gulls circled the masts.'], 'setting off: kept');
+  assert.deepEqual(buildVisualSentences(page, rect, 800, 1000, { carry: 'By noon the' }).map((sentence) => sentence.text),
+    ['By noon the harbor was empty.', 'Gulls circled the masts.'], 'with carried text it is joined instead');
+});
+
+test('a page that starts with a complete sentence, a year, or a single fragment keeps it', () => {
+  const texts = (words) => buildVisualSentences([{ words: lineUp(words, 4) }], rect, 800, 1000).map((sentence) => sentence.text);
+  assert.deepEqual(texts(['Morning', 'came.', 'Gulls', 'woke.']), ['Morning came.', 'Gulls woke.']);
+  assert.deepEqual(texts(['1990', 'was', 'cold.', 'Rivers', 'froze.']), ['1990 was cold.', 'Rivers froze.']);
+  assert.deepEqual(texts(['only', 'this', 'fragment.']), ['only this fragment.'], 'never empties the page');
+});
+
 test('a word hyphenated across a page turn is rejoined', () => {
   const second = [{ words: [word('ment', 10, 20), word('arrived.', 60, 20)] }];
   assert.deepEqual(buildVisualSentences(second, rect, 800, 1000, { carry: 'The new equip-' }).map((sentence) => sentence.text), ['The new equipment arrived.']);
