@@ -5,6 +5,8 @@ export const DEFAULT_SETTINGS = {
   rate: 1.0,
   skipIncompleteLast: true,
   autoScroll: true,
+  autoTurnPages: true, // Kindle: turn the page and keep reading at the end of a page
+  earlyPageTurn: true, // Kindle: turn near the end of the second-to-last sentence, to hide OCR time
   openai: {
     apiKey: '',
     model: 'gpt-4o-mini-tts',

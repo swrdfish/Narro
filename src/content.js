@@ -1,7 +1,8 @@
 // Content script: builds the reading list, drives sentence-by-sentence playback,
 // highlights the current sentence and shows the floating player.
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
-import { getSettings, saveSettings, ENGINES } from './settings.js';
+import { getSettings, saveSettings, ENGINES, KOKORO_VOICES } from './settings.js';
+import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 
 if (!window.__aiReader) {
   window.__aiReader = true;
@@ -17,7 +18,15 @@ function main() {
     rate: 1,
     settings: null,
     picking: false, // choosing a start sentence with the mouse
+    preparing: false,
+    sourceInfo: '',
   };
+  let preparation;
+  const kindle = isKindleUrl(location.href) ? createKindleReader(() => {
+    cancelPick();
+    stop();
+    ui.setInfo('Kindle page changed — press Play to read it.');
+  }) : null;
 
   // --- Highlighting -----------------------------------------------------------------------------
 
@@ -32,6 +41,7 @@ function main() {
 
   function highlight(i) {
     const s = state.sentences[i];
+    if (kindle) return kindle.highlight(upcoming ? null : s);
     if (!s || !globalThis.CSS?.highlights) return;
     const block = document.createRange();
     block.selectNodeContents(s.el);
@@ -44,6 +54,7 @@ function main() {
   }
 
   function clearHighlight() {
+    kindle?.clear();
     CSS.highlights?.delete('ai-reader-sentence');
     CSS.highlights?.delete('ai-reader-block');
   }
@@ -67,6 +78,7 @@ function main() {
   }
 
   function firstVisibleSentence() {
+    if (kindle) return 0;
     for (let i = 0; i < state.sentences.length; i++) {
       const r = state.sentences[i].range.getBoundingClientRect();
       if (r.bottom > 0 && r.top < innerHeight && r.width > 0) return i;
@@ -75,6 +87,7 @@ function main() {
   }
 
   function selectionStart() {
+    if (kindle) return -1;
     const sel = getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return -1;
     const r = sel.getRangeAt(0);
@@ -88,6 +101,8 @@ function main() {
   }
 
   async function play(i) {
+    if (state.preparing) return;
+    if (kindle && i === state.sentences.length && i > 0 && state.settings?.autoTurnPages) return nextKindlePage();
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
     const seq = ++state.seq;
@@ -111,13 +126,105 @@ function main() {
     if (!res?.resumed) play(state.idx); // audio was lost (e.g. offscreen page closed while paused)
   }
 
+  // End of a Kindle page: turn it and keep reading. Text cut off at the turn is carried over.
+  // Next Kindle page, possibly started early while the last sentence was still playing.
+  let upcoming = null; // { controller, promise }
+
+  function kindleStatus(message) {
+    if (message.startsWith('Kindle:')) state.sourceInfo = message;
+    ui.setInfo(message);
+  }
+
+  // Turns the page and reads it without touching the current reading list.
+  // Resolves { sentences } | { end: true } | { error } | null if aborted.
+  async function loadNextKindlePage(signal) {
+    try {
+      kindle.highlight(null);
+      ui.setInfo('Turning page…');
+      if (!(await kindle.turnPage(signal))) return { end: true };
+      const sentences = await kindle.read({ lang: 'en', skipIncompleteLast: state.settings.skipIncompleteLast }, signal,
+        kindleStatus, (hidden) => ui.captureHidden(hidden));
+      signal.throwIfAborted();
+      if (!sentences.length) return { error: 'No readable English text found. Try a larger font and a text page rather than the cover.' };
+      // Have the voice ready for the new page by the time the current sentence ends.
+      send({ type: 'prefetch', texts: sentences.slice(0, 2).map((sentence) => sentence.text) });
+      return { sentences };
+    } catch (error) {
+      return signal.aborted ? null : { error: error.message };
+    }
+  }
+
+  function startNextKindlePage() {
+    if (!upcoming) {
+      const controller = new AbortController();
+      upcoming = { controller, promise: loadNextKindlePage(controller.signal) };
+    }
+    return upcoming;
+  }
+
+  // The second-to-last sentence on the page is about to end: turn the page now, so turning, OCR
+  // and voice prefetch run while the last sentence plays. A one-sentence page turns on that one.
+  function turnEarly() {
+    if (!kindle || upcoming || state.preparing || !state.settings?.autoTurnPages || !state.settings.earlyPageTurn) return;
+    if (state.idx === Math.max(0, state.sentences.length - 2)) startNextKindlePage();
+  }
+
+  // End of a Kindle page: continue on the next one. Text cut off at the turn is carried over.
+  async function nextKindlePage() {
+    const seq = ++state.seq; // ignore late events from the last sentence
+    const pending = startNextKindlePage();
+    preparation = pending.controller;
+    state.preparing = true;
+    setStatus('loading');
+    const result = await pending.promise;
+    if (upcoming === pending) upcoming = null;
+    if (preparation === pending.controller) {
+      preparation = null;
+      state.preparing = false;
+    }
+    if (seq !== state.seq || !result) return; // stopped meanwhile
+    if (result.end) {
+      setStatus('idle');
+      clearHighlight();
+      ui.setInfo('Reached the end of the book.');
+      return;
+    }
+    if (result.error) return fail(result.error);
+    state.sentences = result.sentences;
+    play(0);
+  }
+
   async function prepare() {
-    state.settings = await getSettings();
-    state.rate = state.settings.rate;
-    build();
-    if (state.sentences.length) return true;
-    fail('No readable text found on this page.');
-    return false;
+    preparation?.abort();
+    const controller = new AbortController();
+    preparation = controller;
+    state.preparing = true;
+    try {
+      state.settings = await getSettings();
+      controller.signal.throwIfAborted();
+      state.rate = state.settings.rate;
+      if (kindle) {
+        state.sentences = [];
+        state.sourceInfo = '';
+        kindle.clear();
+        ui.show();
+        state.sentences = await kindle.read({ lang: 'en', skipIncompleteLast: state.settings.skipIncompleteLast }, controller.signal,
+          kindleStatus, (hidden) => ui.captureHidden(hidden));
+      } else build();
+      controller.signal.throwIfAborted();
+      if (state.sentences.length) return true;
+      fail(kindle ? 'No readable English text found. Try a larger font and a text page rather than the cover.' : 'No readable text found on this page.');
+      return false;
+    } catch (error) {
+      if (!controller.signal.aborted) fail(error.message);
+      return false;
+    } finally {
+      if (preparation === controller) {
+        state.preparing = false;
+        preparation = null;
+        ui.render();
+      }
+    }
   }
 
   async function start(fromSelection = false) {
@@ -129,8 +236,13 @@ function main() {
   }
 
   function stop() {
+    preparation?.abort();
+    upcoming?.controller.abort();
+    upcoming = null;
+    state.preparing = false;
     state.seq++;
-    send({ type: 'stop' });
+    if (!kindle || state.status !== 'idle') send({ type: 'stop' });
+    if (kindle) state.sentences = [];
     setStatus('idle');
     clearHighlight();
   }
@@ -142,15 +254,14 @@ function main() {
   }
 
   function fail(message) {
-    state.seq++;
-    send({ type: 'stop' });
-    setStatus('idle');
+    stop();
     ui.show();
     ui.setInfo(message, true);
   }
 
   function toggle() {
-    if (state.status === 'playing' || state.status === 'loading') pause();
+    if (state.preparing) stop();
+    else if (state.status === 'playing' || state.status === 'loading') pause();
     else if (state.status === 'paused') resume();
     else if (state.sentences.length && ui.visible) play(state.idx);
     else start();
@@ -176,10 +287,12 @@ function main() {
   let hoverFrame = 0; // pending requestAnimationFrame for the hover preview
 
   async function startPick() {
+    if (state.preparing) return;
     if (state.picking) return cancelPick();
     // Keep the current reading list while reading so the position stays valid.
     if (state.status === 'idle' && !(await prepare())) return;
     state.picking = true;
+    kindle?.picking(true);
     document.documentElement.classList.add('ai-reader-picking');
     ui.show();
     ui.setInfo('Click a sentence to start reading · Esc to cancel');
@@ -191,11 +304,13 @@ function main() {
     hoverFrame = 0;
     document.documentElement.classList.remove('ai-reader-picking');
     CSS.highlights?.delete('ai-reader-pick');
+    kindle?.picking(false);
     ui.setInfo('');
     ui.render();
   }
 
   function sentenceAtPoint(x, y) {
+    if (kindle) return visualSentenceAt(state.sentences, x, y);
     const pos = document.caretPositionFromPoint?.(x, y);
     let node = pos?.offsetNode;
     let offset = pos?.offset;
@@ -223,7 +338,8 @@ function main() {
       hoverFrame = 0;
       if (!state.picking) return;
       const i = onPlayer(e) ? -1 : sentenceAtPoint(e.clientX, e.clientY);
-      if (i >= 0) CSS.highlights.set('ai-reader-pick', new Highlight(state.sentences[i].range));
+      if (kindle) kindle.preview(state.sentences[i]);
+      else if (i >= 0) CSS.highlights.set('ai-reader-pick', new Highlight(state.sentences[i].range));
       else CSS.highlights.delete('ai-reader-pick');
     });
   }, { passive: true });
@@ -258,12 +374,18 @@ function main() {
   }, true);
 
   document.addEventListener('keydown', (e) => {
+    if (kindle && (state.preparing || state.status !== 'idle') && !state.picking && !e.altKey && !onPlayer(e)
+      && ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) stop();
     if (state.picking && e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
       cancelPick();
     }
   }, true);
+
+  document.addEventListener('wheel', (event) => {
+    if (kindle && (state.preparing || state.status !== 'idle') && !state.picking && !onPlayer(event)) stop();
+  }, { capture: true, passive: true });
 
   function setStatus(status) {
     state.status = status;
@@ -297,7 +419,10 @@ function main() {
     switch (msg.event) {
       case 'started':
         if (state.status !== 'paused') setStatus('playing');
-        ui.setInfo('');
+        ui.setInfo(state.sourceInfo);
+        break;
+      case 'nearly-ended':
+        if (state.status === 'playing') turnEarly();
         break;
       case 'ended':
         if (state.status !== 'paused') play(state.idx + 1);
@@ -344,6 +469,20 @@ function main() {
   });
 }
 
+function voiceLabel(settings) {
+  if (!settings) return '';
+  const engine = settings.engine;
+  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', kokoro: 'Kokoro', localServer: 'Local server', system: 'System voice' }[engine] || engine;
+  const voice = {
+    openai: settings.openai?.voice,
+    gemini: settings.gemini?.voice,
+    kokoro: KOKORO_VOICES[settings.kokoro?.voice]?.replace(/ \(.*\)$/, ''),
+    localServer: settings.localServer?.voice,
+    system: settings.system?.voiceName,
+  }[engine];
+  return voice ? `${name} · ${voice}` : name;
+}
+
 function createPlayer(h) {
   const host = document.createElement('div');
   host.id = 'ai-reader-host';
@@ -375,11 +514,15 @@ function createPlayer(h) {
       button.pick.active { background: var(--accent); color: #fff; }
       svg { width: 18px; height: 18px; fill: currentColor; }
       .rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
-      .pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 6px; min-width: 56px; text-align: center; }
+      .pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 6px; width: 72px; text-align: center; white-space: nowrap; }
       .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-      .info { max-width: 280px; padding: 0 6px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .info:empty { display: none; }
-      .info.error { color: #dc2626; white-space: normal; }
+      /* Fixed size so status changes never resize (and re-center) the bar. */
+      .info { width: 240px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.3; transition: opacity .14s ease; }
+      .info .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+      .info.fading { opacity: 0; }
+      .info.placeholder { opacity: .75; }
+      .info.placeholder.fading { opacity: 0; }
+      .info.error { color: #dc2626; }
       .grip { display: grid; place-items: center; width: 14px; height: 32px; margin-right: -2px; color: var(--muted); cursor: grab; }
       .grip svg { width: 14px; height: 14px; }
       .bar { touch-action: none; user-select: none; }
@@ -398,7 +541,7 @@ function createPlayer(h) {
       <span class="rate"></span>
       <button class="small faster" title="Faster"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       <span class="sep"></span>
-      <span class="info"></span>
+      <span class="info"><span class="text"></span></span>
       <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
       <button class="settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
       <button class="close" title="Stop and close"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1.4 0)"/></svg></button>
@@ -493,6 +636,44 @@ function createPlayer(h) {
     applyPosition();
   });
 
+  let shownIcon = 'play';
+  let spinnerTimer = null;
+  function setIcon(name) {
+    shownIcon = name;
+    const button = $('.play');
+    if (button.dataset.icon === name) return; // re-creating the SVG would restart the spinner
+    button.dataset.icon = name;
+    button.innerHTML = icons[name];
+    button.title = name === 'pause' ? 'Pause' : 'Play';
+  }
+
+  let info = { text: '', isError: false };
+  let infoTimer = null;
+  let fadeTimer = null;
+  function placeholder() {
+    const s = h.getState();
+    if (s.sourceInfo && s.status !== 'idle') return s.sourceInfo;
+    return voiceLabel(s.settings) || 'Ready';
+  }
+  // Cross-fades the status text to the latest message (or the placeholder).
+  function paintInfo() {
+    const box = $('.info');
+    const text = info.text || placeholder();
+    const classes = { error: info.isError, placeholder: !info.text };
+    if (box.dataset.shown === text && Object.entries(classes).every(([name, on]) => box.classList.contains(name) === on)) return;
+    box.dataset.shown = text;
+    const apply = () => {
+      box.querySelector('.text').textContent = text;
+      box.title = text;
+      for (const [name, on] of Object.entries(classes)) box.classList.toggle(name, on);
+      box.classList.remove('fading');
+    };
+    clearTimeout(fadeTimer);
+    if (!box.querySelector('.text').textContent) return apply(); // first paint: no fade
+    box.classList.add('fading');
+    fadeTimer = setTimeout(apply, 140);
+  }
+
   const ui = {
     visible: false,
     show() {
@@ -505,21 +686,44 @@ function createPlayer(h) {
       host.remove();
       ui.visible = false;
     },
+    captureHidden(hidden) {
+      host.style.visibility = hidden ? 'hidden' : '';
+    },
     render() {
       const s = h.getState();
-      const icon = s.status === 'loading' ? 'loading' : s.status === 'playing' ? 'pause' : 'play';
-      $('.play').innerHTML = icons[icon];
-      $('.play').title = icon === 'pause' ? 'Pause' : 'Play';
-      $('.pos').textContent = s.sentences.length ? `${s.idx + 1} / ${s.sentences.length}` : '';
+      // Show the spinner only if loading lasts; between prefetched sentences it would just flash.
+      const loading = s.preparing || s.status === 'loading';
+      if (!loading) {
+        clearTimeout(spinnerTimer);
+        spinnerTimer = null;
+        shownIcon = s.status === 'playing' ? 'pause' : 'play';
+      } else if (!spinnerTimer && shownIcon !== 'loading') {
+        spinnerTimer = setTimeout(() => {
+          spinnerTimer = null;
+          const now = h.getState();
+          if (now.preparing || now.status === 'loading') setIcon('loading');
+        }, 250);
+      }
+      setIcon(shownIcon);
+      $('.pos').textContent = s.sentences.length ? `${s.idx + 1} / ${s.sentences.length}` : '– / –';
       $('.rate').textContent = `${s.rate.toFixed(1)}×`;
       $('.pick').classList.toggle('active', s.picking);
       if (s.settings) $('.settings').title = `Settings — voice: ${ENGINES[s.settings.engine]?.label}`;
+      if (!info.text) paintInfo(); // the placeholder may have changed
     },
     setInfo(text, isError = false) {
-      $('.info').textContent = text || '';
-      $('.info').classList.toggle('error', isError);
-      $('.info').title = text || '';
-      applyPosition(); // width changed; keep the bar on screen
+      info = { text: text || '', isError };
+      // Coalesce bursts of status updates; errors show right away.
+      if (isError) {
+        clearTimeout(infoTimer);
+        infoTimer = null;
+        paintInfo();
+      } else if (!infoTimer) {
+        infoTimer = setTimeout(() => {
+          infoTimer = null;
+          paintInfo();
+        }, 120);
+      }
     },
   };
   return ui;

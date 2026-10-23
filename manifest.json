@@ -4,7 +4,14 @@
   "version": "0.1.0",
   "description": "Read web pages aloud with modern AI voices — cloud (OpenAI, ElevenLabs, Gemini) or fully local (Kokoro).",
   "minimum_chrome_version": "116",
-  "permissions": ["storage", "activeTab", "scripting", "offscreen", "tts", "contextMenus"],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "offscreen",
+    "tts",
+    "contextMenus"
+  ],
   "host_permissions": [
     "https://api.openai.com/*",
     "https://api.elevenlabs.io/*",
@@ -14,15 +21,46 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "AI Reader", "default_popup": "options.html?popup" },
-  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "AI Reader",
+    "default_popup": "options.html?popup"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "commands": {
-    "toggle-reading": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "Play / pause reading" },
-    "next-sentence": { "suggested_key": { "default": "Alt+Shift+Right" }, "description": "Next sentence" },
-    "prev-sentence": { "suggested_key": { "default": "Alt+Shift+Left" }, "description": "Previous sentence" },
-    "stop-reading": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Stop reading" },
-    "pick-start": { "description": "Choose where to start reading" }
+    "toggle-reading": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Play / pause reading"
+    },
+    "next-sentence": {
+      "suggested_key": {
+        "default": "Alt+Shift+Right"
+      },
+      "description": "Next sentence"
+    },
+    "prev-sentence": {
+      "suggested_key": {
+        "default": "Alt+Shift+Left"
+      },
+      "description": "Previous sentence"
+    },
+    "stop-reading": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Stop reading"
+    },
+    "pick-start": {
+      "description": "Choose where to start reading"
+    }
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"

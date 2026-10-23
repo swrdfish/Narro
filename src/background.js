@@ -1,14 +1,17 @@
 // Service worker: routes messages between the page (content script), the offscreen audio
 // player, and chrome.tts. Kept stateless apart from chrome.storage.session so it survives restarts.
 import { getSettings } from './settings.js';
+import { captureKindle } from './kindle-capture.js';
+import { isKindleUrl } from './kindle-data.js';
 
 let creatingOffscreen = null;
+const kindleRequests = new Map();
 
 async function ensureOffscreen() {
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
   if (contexts.length) return;
   creatingOffscreen ??= chrome.offscreen
-    .createDocument({ url: 'offscreen.html', reasons: ['AUDIO_PLAYBACK', 'WORKERS'], justification: 'Play synthesized speech; run the local Kokoro TTS model in a worker' })
+    .createDocument({ url: 'offscreen.html', reasons: ['AUDIO_PLAYBACK', 'WORKERS'], justification: 'Play synthesized speech; run local Kokoro and Kindle OCR workers; process Kindle page images' })
     .finally(() => (creatingOffscreen = null));
   await creatingOffscreen;
 }
@@ -25,8 +28,8 @@ function toTab(tabId, msg) {
 
 async function claimTab(tabId) {
   const { readerTab } = await chrome.storage.session.get('readerTab');
-  if (readerTab != null && readerTab !== tabId) toTab(readerTab, { type: 'tts-event', event: 'preempted' });
   await chrome.storage.session.set({ readerTab: tabId });
+  if (readerTab != null && readerTab !== tabId) toTab(readerTab, { type: 'tts-event', event: 'preempted' });
 }
 
 // --- System voices (chrome.tts) -----------------------------------------------------------------
@@ -47,6 +50,10 @@ function systemSpeak(tabId, seq, text, settings) {
 // --- Message handling ---------------------------------------------------------------------------
 
 async function handleFromTab(msg, tabId) {
+  if (['pause', 'resume', 'rate', 'stop'].includes(msg.type)) {
+    const { readerTab } = await chrome.storage.session.get('readerTab');
+    if (readerTab != null && readerTab !== tabId) return { ok: true, resumed: false };
+  }
   const settings = await getSettings();
   const system = settings.engine === 'system';
   switch (msg.type) {
@@ -59,6 +66,9 @@ async function handleFromTab(msg, tabId) {
         chrome.tts.stop();
         await toOffscreen({ cmd: 'speak', tabId, seq: msg.seq, text: msg.text, prefetch: msg.prefetch, settings });
       }
+      return { ok: true };
+    case 'prefetch':
+      if (!system && Array.isArray(msg.texts)) await toOffscreen({ cmd: 'prefetch', texts: msg.texts.slice(0, 3), settings });
       return { ok: true };
     case 'pause':
       chrome.tts.pause();
@@ -93,6 +103,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'start-reading') {
     startReading(msg.tabId, msg.mode).then(sendResponse, (e) => sendResponse({ error: e.message }));
+    return true;
+  }
+  if (msg.type === 'kindle-extract') {
+    if (!sender.tab || sender.frameId !== 0 || !isKindleUrl(sender.url) || typeof msg.requestId !== 'string' || msg.requestId.length > 80) {
+      sendResponse({ error: 'Invalid Kindle extraction request.' });
+      return;
+    }
+    const key = `${sender.tab.id}:${msg.requestId}`;
+    const request = { cancelled: false };
+    kindleRequests.set(key, request);
+    captureKindle(msg, sender).then(async (capture) => {
+      await toTab(sender.tab.id, { type: 'kindle-captured', requestId: msg.requestId });
+      if (request.cancelled) throw new Error('Kindle extraction cancelled.');
+      await ensureOffscreen();
+      if (request.cancelled) throw new Error('Kindle extraction cancelled.');
+      return chrome.runtime.sendMessage({ target: 'offscreen', cmd: 'kindle-extract', tabId: sender.tab.id, requestId: msg.requestId, ...capture });
+    }).then(sendResponse, (error) => sendResponse({ error: error.message })).finally(() => kindleRequests.delete(key));
+    return true;
+  }
+  if (msg.type === 'kindle-cancel') {
+    if (!sender.tab || sender.frameId !== 0 || !isKindleUrl(sender.url) || typeof msg.requestId !== 'string' || msg.requestId.length > 80) return;
+    const request = kindleRequests.get(`${sender.tab.id}:${msg.requestId}`);
+    if (request) request.cancelled = true;
+    toOffscreen({ cmd: 'kindle-cancel', tabId: sender.tab.id, requestId: msg.requestId }, { create: false })
+      .then(sendResponse, (error) => sendResponse({ error: error.message }));
     return true;
   }
   if (sender.tab) {

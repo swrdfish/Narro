@@ -1,7 +1,11 @@
 // Offscreen document: synthesizes and plays audio. Driven by the background service worker.
 import { synthesize, cacheKey } from './engines.js';
+import { recognizeKindle, cancelKindle } from './kindle-ocr.js';
 
 const CACHE_LIMIT = 12;
+// Seconds of audio (at the current speed) left when 'nearly-ended' is sent, so the reader can
+// prepare what comes next (e.g. turn a Kindle page) while the sentence finishes.
+const NEARLY_ENDED_LEAD = 1.5;
 const cache = new Map(); // key -> Promise<Blob>
 
 const audio = new Audio();
@@ -29,6 +33,7 @@ function getAudio(settings, text, onStatus) {
 function stopAudio() {
   audio.onended = null;
   audio.onerror = null;
+  audio.ontimeupdate = null;
   audio.pause();
   if (current?.url) URL.revokeObjectURL(current.url);
   current = null;
@@ -55,6 +60,13 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
     audio.playbackRate = rate;
     audio.onended = () => current === token && emit(tabId, seq, 'ended');
     audio.onerror = () => current === token && emit(tabId, seq, 'error', { message: 'Audio playback failed.' });
+    audio.ontimeupdate = () => {
+      if (current !== token || token.nearlyEnded || !Number.isFinite(audio.duration)) return;
+      if ((audio.duration - audio.currentTime) / audio.playbackRate <= NEARLY_ENDED_LEAD) {
+        token.nearlyEnded = true;
+        emit(tabId, seq, 'nearly-ended');
+      }
+    };
     if (token.paused) return; // resume() will start it
     await audio.play();
     emit(tabId, seq, 'started');
@@ -66,8 +78,20 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.target !== 'offscreen') return;
   switch (msg.cmd) {
+    case 'kindle-cancel':
+      cancelKindle(msg);
+      break;
+    case 'kindle-extract':
+      recognizeKindle(msg).then(sendResponse, (error) => sendResponse({ error: error.message }));
+      return true;
     case 'speak':
       speak(msg);
+      break;
+    case 'prefetch':
+      // Warm the cache, one at a time, without interrupting what's playing.
+      (async () => {
+        for (const text of msg.texts) await getAudio(msg.settings, text).catch(() => {});
+      })();
       break;
     case 'pause':
       if (current) current.paused = true;

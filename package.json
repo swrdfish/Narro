@@ -9,7 +9,9 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "kokoro-js": "^1.2.1"
+    "@tesseract.js-data/eng": "^1.0.0",
+    "kokoro-js": "^1.2.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

@@ -26,6 +26,22 @@ npm test           # sentence extraction tests (jsdom)
 
 Load `dist/` at `chrome://extensions`. Turn on Developer mode, then choose **Load unpacked**.
 
+## Kindle Cloud Reader
+
+Kindle Cloud Reader draws book pages as images rather than DOM text, so the ordinary website extractor finds nothing to read. On Kindle, AI Reader instead runs **local OCR on the page you can see**. Ordinary websites keep using the DOM reader.
+
+After building, reload AI Reader in `chrome://extensions`, then reload your Kindle tab. Open a text page of your book and press Play. Keep the whole page visible while it's being recognized.
+
+- Tesseract runs locally in the extension's offscreen document. The worker, WebAssembly and **English** recognition data are bundled in `dist/ocr/`, so there's no CDN and no extra API key. Other OCR languages aren't bundled yet.
+- Page images are read directly when possible. Otherwise the extension captures the active Kindle tab and crops it to the book region. Images stay on your machine. The recognized text goes to your selected speech provider, as on any other site.
+- Sentence and paragraph highlights are drawn over the page image using OCR word boxes. **Start from…** works by clicking a sentence on the image.
+- Screenshot-only viewers get a transparent guard during playback. Click the book once to stop reading before interacting with it.
+- At the end of a page the reader clicks Kindle's **Next page** button (or presses →), waits for the new page to settle, recognizes it and keeps reading. It stops with "Reached the end of the book." when the page doesn't change. You can turn this off with **Turn Kindle pages automatically** in the settings.
+- A sentence cut off by a column break or a page turn is spoken once, in full: the unread tail of a page is carried over to the next one. Turning the page yourself, resizing or switching tabs while reading stops playback, so stale text is never spoken.
+- Decorative fonts, illustrations, small text and partly offscreen pages reduce OCR accuracy.
+
+`src/kindle-intercept.js` and the `GlyphDecoder` in `src/kindle-text.js` are **not wired up**. Nothing in the manifest, build or shipped bundles references them, and `test/ocr-only.test.js` fails if anything starts to.
+
 Shortcuts (change them at `chrome://extensions/shortcuts`):
 - Alt+Shift+R: play/pause
 - Alt+Shift+←/→: previous/next sentence

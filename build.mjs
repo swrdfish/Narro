@@ -6,6 +6,18 @@ const out = 'dist';
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(`${out}/ort`, { recursive: true });
+mkdirSync(`${out}/ocr`, { recursive: true });
+
+cpSync('node_modules/tesseract.js/dist/worker.min.js', `${out}/ocr/worker.min.js`);
+cpSync('node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', `${out}/ocr/eng.traineddata.gz`);
+for (const variant of ['lstm', 'simd-lstm', 'relaxedsimd-lstm']) {
+  for (const extension of ['wasm.js', 'wasm']) {
+    const file = `tesseract-core-${variant}.${extension}`;
+    cpSync(`node_modules/tesseract.js-core/${file}`, `${out}/ocr/${file}`);
+  }
+}
+cpSync('node_modules/tesseract.js/LICENSE.md', `${out}/ocr/TESSERACT-LICENSE.md`);
+cpSync('node_modules/tesseract.js-core/LICENSE', `${out}/ocr/CORE-LICENSE`);
 
 cpSync('manifest.json', `${out}/manifest.json`);
 for (const f of ['offscreen.html', 'options.html', 'options.css']) cpSync(`src/${f}`, `${out}/${f}`);

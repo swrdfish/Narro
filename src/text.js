@@ -115,7 +115,7 @@ function locate(block, offset, preferEnd) {
   return null;
 }
 
-function splitSentences(text, lang) {
+export function splitSentences(text, lang) {
   const out = [];
   let segmenter;
   try {
