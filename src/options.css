@@ -47,6 +47,12 @@
 }
 
 * { box-sizing: border-box; }
+/* Narrow, theme-coloured scrollbars for the popup and its dropdown lists. (The standard
+   scrollbar-width: thin is still ~11px with always-visible scroll bars on macOS.) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 system-ui, -apple-system, sans-serif; }
 main { width: 360px; padding: 16px; margin: 0 auto; }
 
