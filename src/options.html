@@ -33,21 +33,24 @@
       </label>
 
       <div class="engine" data-engine="openai">
-        <label class="field"><span>API key</span><input type="password" data-key="openai.apiKey" placeholder="sk-…" autocomplete="off"></label>
-        <label class="field"><span>Model</span><input data-key="openai.model" list="openai-models"></label>
+        <div class="field"><label for="openai-key">API key</label>
+          <div class="secret"><input id="openai-key" type="password" data-key="openai.apiKey" placeholder="sk-…" autocomplete="off" spellcheck="false"></div></div>
+        <label class="field"><span>Model</span><select data-key="openai.model" id="openai-models"></select></label>
         <label class="field"><span>Voice</span><select data-key="openai.voice" id="openai-voices"></select></label>
-        <label class="field"><span>Style instructions <em>(gpt-4o models)</em></span><textarea data-key="openai.instructions" rows="2"></textarea></label>
+        <label class="field" id="openai-style"><span>Style instructions</span><textarea data-key="openai.instructions" rows="2"></textarea></label>
       </div>
 
       <div class="engine" data-engine="elevenlabs">
-        <label class="field"><span>API key</span><input type="password" data-key="elevenlabs.apiKey" autocomplete="off"></label>
-        <label class="field"><span>Model</span><input data-key="elevenlabs.model" list="elevenlabs-models"></label>
+        <div class="field"><label for="elevenlabs-key">API key</label>
+          <div class="secret"><input id="elevenlabs-key" type="password" data-key="elevenlabs.apiKey" autocomplete="off" spellcheck="false"></div></div>
+        <label class="field"><span>Model</span><select data-key="elevenlabs.model" id="elevenlabs-models"></select></label>
         <label class="field"><span>Voice</span><select data-key="elevenlabs.voiceId" id="elevenlabs-voices"></select></label>
       </div>
 
       <div class="engine" data-engine="gemini">
-        <label class="field"><span>API key</span><input type="password" data-key="gemini.apiKey" autocomplete="off"></label>
-        <label class="field"><span>Model</span><input data-key="gemini.model" list="gemini-models"></label>
+        <div class="field"><label for="gemini-key">API key</label>
+          <div class="secret"><input id="gemini-key" type="password" data-key="gemini.apiKey" autocomplete="off" spellcheck="false"></div></div>
+        <label class="field"><span>Model</span><select data-key="gemini.model" id="gemini-models"></select></label>
         <label class="field"><span>Voice</span><select data-key="gemini.voice" id="gemini-voices"></select></label>
       </div>
 
@@ -65,10 +68,11 @@
 
       <div class="engine" data-engine="localServer">
         <p class="note">Point at any server exposing <code>/v1/audio/speech</code>, e.g. Kokoro-FastAPI, Orpheus-FastAPI or LocalAI.</p>
-        <label class="field"><span>Base URL</span><input data-key="localServer.baseUrl" placeholder="http://localhost:8880/v1"></label>
-        <label class="field"><span>Model</span><input data-key="localServer.model"></label>
-        <label class="field"><span>Voice</span><input data-key="localServer.voice" list="local-voices"></label>
-        <label class="field"><span>API key <em>(optional)</em></span><input type="password" data-key="localServer.apiKey" autocomplete="off"></label>
+        <label class="field"><span>Base URL</span><input data-key="localServer.baseUrl" placeholder="http://localhost:8880/v1" spellcheck="false"></label>
+        <label class="field"><span>Model</span><select data-key="localServer.model" id="local-models"></select></label>
+        <label class="field"><span>Voice</span><input data-key="localServer.voice" list="local-voices" spellcheck="false"></label>
+        <div class="field"><label for="local-key">API key <em>(optional)</em></label>
+          <div class="secret"><input id="local-key" type="password" data-key="localServer.apiKey" autocomplete="off" spellcheck="false"></div></div>
       </div>
 
       <div class="engine" data-engine="system">
@@ -78,24 +82,26 @@
 
     <section>
       <label class="field">
-        <span>Speed <output id="rate-out"></output></span>
+        <span class="row">Speed <output id="rate-out"></output></span>
         <input type="range" data-key="rate" min="0.5" max="3" step="0.1">
       </label>
-      <label class="check"><input type="checkbox" data-key="skipIncompleteLast"> Stop before an incomplete last sentence</label>
-      <label class="check"><input type="checkbox" data-key="autoScroll"> Scroll to follow the reading</label>
-      <label class="check"><input type="checkbox" data-key="autoTurnPages"> Turn Kindle pages automatically</label>
-      <label class="check"><input type="checkbox" data-key="earlyPageTurn"> Turn early, while the page's last sentence is read (smoother)</label>
+      <label class="switch-row">Stop before an incomplete last sentence <input type="checkbox" role="switch" data-key="skipIncompleteLast"></label>
+      <label class="switch-row">Scroll to follow the reading <input type="checkbox" role="switch" data-key="autoScroll"></label>
+      <label class="switch-row">Turn Kindle pages automatically <input type="checkbox" role="switch" data-key="autoTurnPages"></label>
+      <label class="switch-row">Turn early, while the page's last sentence is read <input type="checkbox" role="switch" data-key="earlyPageTurn"></label>
     </section>
 
     <footer>
-      <p>Alt+Shift+R play/pause · Alt+Shift+←/→ previous/next · Alt+Shift+S stop · Alt+click a sentence to jump to it · Right-click → “Choose where to start reading…”</p>
+      <dl class="shortcuts">
+        <dt>Play / pause</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>R</kbd></dd>
+        <dt>Previous / next</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>←</kbd><kbd>→</kbd></dd>
+        <dt>Stop</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>S</kbd></dd>
+        <dt>Jump to a sentence</dt><dd><kbd>Alt</kbd>+click</dd>
+      </dl>
       <p id="status" role="status"></p>
     </footer>
   </main>
 
-  <datalist id="openai-models"><option value="gpt-4o-mini-tts"><option value="tts-1-hd"><option value="tts-1"></datalist>
-  <datalist id="elevenlabs-models"><option value="eleven_flash_v2_5"><option value="eleven_turbo_v2_5"><option value="eleven_multilingual_v2"><option value="eleven_v3"></datalist>
-  <datalist id="gemini-models"><option value="gemini-2.5-flash-preview-tts"><option value="gemini-2.5-pro-preview-tts"></datalist>
   <datalist id="local-voices"></datalist>
 
   <script type="module" src="options.js"></script>

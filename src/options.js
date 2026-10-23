@@ -1,4 +1,6 @@
-import { getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES } from './settings.js';
+import {
+  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, OPENAI_MODELS, ELEVENLABS_MODELS, GEMINI_MODELS,
+} from './settings.js';
 
 const $ = (sel) => document.querySelector(sel);
 let settings;
@@ -14,6 +16,41 @@ function fillSelect(select, options, current) {
   select.replaceChildren(...Object.entries(options).map(([value, label]) => new Option(label, value)));
   if (current && !(current in options)) select.add(new Option(current, current), 0);
   select.value = current;
+}
+
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
+// Adds a show/hide button inside each API key field.
+function addRevealButtons() {
+  for (const input of document.querySelectorAll('.secret input')) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'reveal';
+    const render = () => {
+      const shown = input.type === 'text';
+      button.innerHTML = shown ? EYE_OFF : EYE;
+      button.setAttribute('aria-label', shown ? 'Hide API key' : 'Show API key');
+      button.setAttribute('aria-pressed', String(shown));
+      button.title = button.getAttribute('aria-label');
+    };
+    button.addEventListener('click', () => {
+      input.type = input.type === 'password' ? 'text' : 'password';
+      render();
+    });
+    render();
+    input.after(button);
+  }
+}
+
+function updateRangeFill(range) {
+  const { min, max, value } = range;
+  range.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
+}
+
+// Style instructions only apply to gpt-4o speech models.
+function updateStyleField() {
+  $('#openai-style').hidden = !/gpt-4o/.test(settings.openai.model);
 }
 
 function setStatus(text, isError = false) {
@@ -34,10 +71,16 @@ async function loadDynamicVoices() {
       const { voices } = await res.json();
       fillSelect($('#elevenlabs-voices'), Object.fromEntries(voices.map((v) => [v.voice_id, v.name])), settings.elevenlabs.voiceId);
     } else if (settings.engine === 'localServer') {
-      const res = await fetch(`${settings.localServer.baseUrl.replace(/\/+$/, '')}/audio/voices`);
-      if (res.ok) {
-        const { voices = [] } = await res.json();
+      const base = settings.localServer.baseUrl.replace(/\/+$/, '');
+      const [voicesRes, modelsRes] = await Promise.all([fetch(`${base}/audio/voices`).catch(() => null), fetch(`${base}/models`).catch(() => null)]);
+      if (voicesRes?.ok) {
+        const { voices = [] } = await voicesRes.json();
         $('#local-voices').replaceChildren(...voices.map((v) => new Option(typeof v === 'string' ? v : v.id ?? v.name)));
+      }
+      if (modelsRes?.ok) {
+        const { data = [] } = await modelsRes.json();
+        const ids = data.map((m) => m.id).filter(Boolean);
+        if (ids.length) fillSelect($('#local-models'), Object.fromEntries(ids.map((id) => [id, id])), settings.localServer.model);
       }
     } else if (settings.engine === 'system') {
       const voices = await chrome.tts.getVoices();
@@ -62,6 +105,12 @@ async function init() {
   fillSelect($('#gemini-voices'), Object.fromEntries(GEMINI_VOICES.map((v) => [v, v])), settings.gemini.voice);
   fillSelect($('#kokoro-voices'), KOKORO_VOICES, settings.kokoro.voice);
   fillSelect($('#elevenlabs-voices'), { [settings.elevenlabs.voiceId]: 'George (default) — add API key to list voices' }, settings.elevenlabs.voiceId);
+  fillSelect($('#openai-models'), OPENAI_MODELS, settings.openai.model);
+  fillSelect($('#elevenlabs-models'), ELEVENLABS_MODELS, settings.elevenlabs.model);
+  fillSelect($('#gemini-models'), GEMINI_MODELS, settings.gemini.model);
+  // The local server's own model list is loaded once it's reachable (see loadDynamicVoices).
+  fillSelect($('#local-models'), { [settings.localServer.model]: settings.localServer.model }, settings.localServer.model);
+  addRevealButtons();
 
   $('#engine').value = settings.engine;
   $('#engine').onchange = () => {
@@ -78,13 +127,19 @@ async function init() {
     el.addEventListener('input', () => {
       const v = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value.trim();
       setPath(settings, key, v);
-      if (key === 'rate') $('#rate-out').textContent = `${v.toFixed(1)}×`;
+      if (key === 'rate') {
+        $('#rate-out').textContent = `${v.toFixed(1)}×`;
+        updateRangeFill(el);
+      }
+      if (key === 'openai.model') updateStyleField();
       scheduleSave();
     });
     // Refresh voice lists once a key or server URL is entered.
     if (/apiKey|baseUrl/.test(key)) el.addEventListener('change', loadDynamicVoices);
   }
   $('#rate-out').textContent = `${settings.rate.toFixed(1)}×`;
+  updateRangeFill($('input[type=range]'));
+  updateStyleField();
 
   // The read buttons only make sense in the toolbar popup, where the active tab is the page.
   $('.actions').hidden = !location.search.includes('popup');
