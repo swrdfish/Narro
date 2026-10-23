@@ -78,6 +78,26 @@ test('findContentRoot prefers the article over sidebars', () => {
   assert.equal(findContentRoot(document).tagName, 'ARTICLE');
 });
 
+test('findContentRoot ignores a sidebar page tree and hidden text, and prefers <main>', () => {
+  // Shaped like a Confluence page: a nested page tree in a complementary sidebar, a hidden dialog
+  // full of text, and the article inside <main>.
+  const title = (n) => `Child page number ${n} with a fairly long descriptive title`;
+  const tree = '<ul>' + Array.from({ length: 6 }, (_, i) => `<li>${title(i)}<ul><li>${title(i + 10)}</li><li>${title(i + 20)}</li></ul></li>`).join('') + '</ul>';
+  const hidden = '<div hidden>' + '<p>Keyboard shortcut help text that is long enough to be counted as a paragraph.</p>'.repeat(20) + '</div>';
+  const article = '<p>' + 'The cluster runs three replicas behind the load balancer in each region. '.repeat(3) + '</p>';
+  page(`<div role="complementary">${tree}</div>${hidden}<main id="content"><h1>Cluster</h1>${article.repeat(3)}</main>`);
+  assert.equal(findContentRoot(document).id, 'content');
+});
+
+test('findContentRoot counts nested list text once', () => {
+  // Without <main>: a deep nested list must not outscore a real article.
+  const item = (text, children = '') => `<li>${text}${children}</li>`;
+  const deep = '<ul id="tree">' + Array.from({ length: 5 }, () => item('A navigation entry with a long enough title here', '<ul>' + item('A nested navigation entry with a long title', '<ul>' + item('A deeper nested navigation entry title') + '</ul>') + '</ul>')).join('') + '</ul>';
+  const article = '<p>' + 'Each paragraph of the article body is long enough to count here. '.repeat(2) + '</p>';
+  page(`<div>${deep}</div><article id="story">${article.repeat(4)}</article>`);
+  assert.equal(findContentRoot(document).id, 'story');
+});
+
 test('sentenceAt finds the sentence containing a point', () => {
   const root = page('<p>First sentence. Second sentence.</p>');
   const s = buildSentences(root);

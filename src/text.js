@@ -24,17 +24,30 @@ export function isCompleteSentence(text) {
   return COMPLETE_RE.test(text.trim());
 }
 
+// Regions that hold site navigation rather than the page's own content.
+const NAVIGATION = 'nav, aside, header, footer, [role="navigation"], [role="complementary"], [role="banner"], [role="contentinfo"]';
+const TEXT_BLOCKS = 'p, blockquote, li, dd, td, th';
+const isShown = (el) => !el.closest('[hidden], [aria-hidden="true"]') && (!el.checkVisibility || el.checkVisibility({ visibilityProperty: true }));
+
 /** Picks the element that most likely holds the main article text. */
 export function findContentRoot(doc = document) {
+  const landmark = [...doc.querySelectorAll('main, [role="main"]')].find(isShown) || null;
   const scores = new Map();
-  for (const p of doc.body.querySelectorAll('p, blockquote, li, dd')) {
-    const len = p.textContent.trim().length;
+  let inLandmark = 0;
+  for (const block of doc.body.querySelectorAll(TEXT_BLOCKS)) {
+    // Count each piece of visible page text once: skip navigation (e.g. a sidebar page tree),
+    // hidden text (e.g. closed dialogs) and blocks containing other blocks (nested lists).
+    if (block.closest(NAVIGATION) || block.querySelector(TEXT_BLOCKS) || !isShown(block)) continue;
+    const len = block.textContent.trim().length;
     if (len < 40) continue;
-    let el = p.parentElement;
+    if (landmark?.contains(block)) inLandmark += len;
+    let el = block.parentElement;
     for (let depth = 0; el && depth < 3; depth++, el = el.parentElement) {
       scores.set(el, (scores.get(el) || 0) + len / (depth + 1));
     }
   }
+  // The page's own <main> landmark is the strongest hint, when it holds real text.
+  if (landmark && inLandmark >= 300) return landmark;
   let best = null;
   let bestScore = 0;
   for (const [el, score] of scores) {
