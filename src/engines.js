@@ -67,7 +67,7 @@ function floatToInt16(f32) {
   return out;
 }
 
-// --- Kokoro, fully in-browser via ONNX Runtime Web (in a worker) ------------------------------
+// --- In-browser voices (Kokoro, Supertonic, Piper) via ONNX Runtime Web, in a worker --------------
 
 let worker = null;
 let nextId = 0;
@@ -75,7 +75,7 @@ const pending = new Map(); // id -> { resolve, reject, onStatus }
 
 function getWorker() {
   if (worker) return worker;
-  worker = new Worker(chrome.runtime.getURL('kokoro-worker.js'), { type: 'module' });
+  worker = new Worker(chrome.runtime.getURL('local-worker.js'), { type: 'module' });
   worker.onmessage = ({ data }) => {
     if (data.type === 'status') {
       for (const p of pending.values()) p.onStatus?.(data.status);
@@ -88,18 +88,18 @@ function getWorker() {
     else p.resolve(toWav(data.samples, data.sampleRate));
   };
   worker.onerror = (e) => {
-    for (const p of pending.values()) p.reject(new Error(`Kokoro worker failed: ${e.message}`));
+    for (const p of pending.values()) p.reject(new Error(`Local voice worker failed: ${e.message}`));
     pending.clear();
     worker = null;
   };
   return worker;
 }
 
-function kokoroSpeech({ voice, device }, text, onStatus) {
+function localSpeech(engine, options, text, onStatus) {
   return new Promise((resolve, reject) => {
     const id = ++nextId;
     pending.set(id, { resolve, reject, onStatus });
-    getWorker().postMessage({ id, text, voice, device, wasmPaths: chrome.runtime.getURL('ort/') });
+    getWorker().postMessage({ id, engine, text, options, wasmPaths: chrome.runtime.getURL('ort/') });
   });
 }
 
@@ -161,7 +161,9 @@ export async function synthesize(settings, text, { onStatus } = {}) {
       return toWav(new Int16Array(bytes.buffer, 0, bytes.byteLength >> 1), rate);
     }
     case 'kokoro':
-      return kokoroSpeech(settings.kokoro, text, onStatus);
+    case 'supertonic':
+    case 'piper':
+      return localSpeech(settings.engine, settings[settings.engine], text, onStatus);
     default:
       throw new Error(`Unknown engine: ${settings.engine}`);
   }

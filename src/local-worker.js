@@ -1,0 +1,168 @@
+// Runs the in-browser voices (Kokoro, Supertonic, Piper) off the main thread, so generation never
+// blocks playback or pause/stop. One model is kept loaded at a time.
+import { KokoroTTS, env as kokoroEnv } from 'kokoro-js';
+import { pipeline } from '@huggingface/transformers';
+import * as ort from 'onnxruntime-web';
+import { phonemize } from 'phonemizer';
+import { downloadProgress } from './progress.js';
+
+const ENGINE_NAMES = { kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper' };
+
+const status = (text) => postMessage({ type: 'status', status: text });
+
+async function useWebGpu(device) {
+  return device === 'webgpu' || (device === 'auto' && 'gpu' in navigator && !!(await navigator.gpu.requestAdapter()));
+}
+
+const progressReporter = (label) => downloadProgress(label, status);
+
+// --- Kokoro ---------------------------------------------------------------------------------------
+
+async function loadKokoro({ device }) {
+  const gpu = await useWebGpu(device);
+  const tts = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
+    // q8 is fastest on CPU; WebGPU needs fp32 for correct output.
+    dtype: gpu ? 'fp32' : 'q8',
+    device: gpu ? 'webgpu' : 'wasm',
+    progress_callback: progressReporter('Kokoro model'),
+  });
+  return async (text, { voice }) => {
+    const audio = await tts.generate(text, { voice });
+    return { samples: audio.audio, sampleRate: audio.sampling_rate };
+  };
+}
+
+// --- Supertonic (Supertone, via the Transformers.js text-to-speech pipeline) ---------------------
+
+const SUPERTONIC = 'onnx-community/Supertonic-TTS-2-ONNX';
+
+async function loadSupertonic({ device }) {
+  const gpu = await useWebGpu(device);
+  const tts = await pipeline('text-to-speech', SUPERTONIC, {
+    dtype: 'fp32',
+    device: gpu ? 'webgpu' : 'wasm',
+    progress_callback: progressReporter('Supertonic model'),
+  });
+  return async (text, { voice, language }) => {
+    const out = await tts(`<${language}>${text}</${language}>`, {
+      speaker_embeddings: `https://huggingface.co/${SUPERTONIC}/resolve/main/voices/${voice}.bin`,
+      num_inference_steps: 5, // the model card's recommended quality/speed balance
+      speed: 1, // playback speed is applied by the player
+    });
+    return { samples: out.audio, sampleRate: out.sampling_rate };
+  };
+}
+
+// --- Piper (rhasspy/piper voices: espeak phonemes → VITS model) ----------------------------------
+
+const PIPER_VOICES = 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
+
+// "en_US-lessac-medium" → "en/en_US/lessac/medium/en_US-lessac-medium"
+function piperPath(name) {
+  const parts = name.split('-');
+  const [lang, quality] = [parts[0], parts.at(-1)];
+  const speaker = parts.slice(1, -1).join('-');
+  return `${lang.split('_')[0]}/${lang}/${speaker}/${quality}/${name}`;
+}
+
+// Fetches a file once and keeps it in the browser's cache, reporting download progress.
+async function cachedFetch(url, onProgress) {
+  const cache = await caches.open('narro-piper');
+  const hit = await cache.match(url);
+  if (hit) return hit.arrayBuffer();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`couldn't download ${url.split('/').pop()} (HTTP ${res.status})`);
+  const total = Number(res.headers.get('content-length')) || 0;
+  const reader = res.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    onProgress?.({ status: 'progress', file: url, loaded, total: total || loaded });
+  }
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  await cache.put(url, new Response(bytes)).catch(() => {});
+  return bytes.buffer;
+}
+
+// Punctuation stays as-is: Piper's phoneme map includes it and uses it for pauses and intonation.
+const PUNCTUATION = /(\s*[;:,.!?¡¿—…"«»“”(){}[\]]+\s*)+/g;
+
+async function piperPhonemes(text, espeakVoice) {
+  let result = '';
+  let last = 0;
+  for (const match of text.matchAll(PUNCTUATION)) {
+    if (match.index > last) result += (await phonemize(text.slice(last, match.index), espeakVoice)).join(' ');
+    result += match[0].replace(/\s+/g, ' ');
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) result += (await phonemize(text.slice(last), espeakVoice)).join(' ');
+  return result.trim();
+}
+
+async function loadPiper({ voice }) {
+  const base = `${PIPER_VOICES}/${piperPath(voice)}`;
+  const report = progressReporter(`Piper voice ${voice}`);
+  const config = JSON.parse(new TextDecoder().decode(await cachedFetch(`${base}.onnx.json`)));
+  const model = await cachedFetch(`${base}.onnx`, report);
+  status('Loading Piper voice…');
+  const session = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] });
+  const ids = config.phoneme_id_map;
+  const { noise_scale: noise = 0.667, length_scale: length = 1, noise_w: noiseW = 0.8 } = config.inference || {};
+  return async (text) => {
+    const phonemes = await piperPhonemes(text, config.espeak?.voice || 'en-us');
+    // Piper's encoding: ^ then each phoneme followed by the pad symbol, then $.
+    const sequence = [...ids['^'], ...ids._];
+    for (const symbol of phonemes) {
+      if (!ids[symbol]) continue;
+      sequence.push(...ids[symbol], ...ids._);
+    }
+    sequence.push(...ids.$);
+    const feeds = {
+      input: new ort.Tensor('int64', BigInt64Array.from(sequence, BigInt), [1, sequence.length]),
+      input_lengths: new ort.Tensor('int64', BigInt64Array.from([BigInt(sequence.length)]), [1]),
+      scales: new ort.Tensor('float32', Float32Array.from([noise, length, noiseW]), [3]),
+    };
+    if (config.num_speakers > 1) feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]), [1]);
+    const output = await session.run(feeds);
+    return { samples: Float32Array.from(output.output.data), sampleRate: config.audio.sample_rate };
+  };
+}
+
+// --- Dispatch -----------------------------------------------------------------------------------
+
+const LOADERS = { kokoro: loadKokoro, supertonic: loadSupertonic, piper: loadPiper };
+// What determines a reload: switching engine, device, or (for Piper) voice.
+const modelKey = (engine, options) => JSON.stringify([engine, options.device, engine === 'piper' ? options.voice : '']);
+
+let loaded = null; // { key, generate: Promise<fn> }
+let queue = Promise.resolve(); // requests are handled one at a time
+
+self.onmessage = ({ data }) => {
+  const { id, engine, text, options, wasmPaths } = data;
+  const name = ENGINE_NAMES[engine] || engine;
+  queue = queue.then(async () => {
+    try {
+      kokoroEnv.wasmPaths = wasmPaths; // shared ONNX Runtime settings, also used by Supertonic and Piper
+      ort.env.wasm.wasmPaths = wasmPaths;
+      const key = modelKey(engine, options);
+      if (loaded?.key !== key) {
+        status(`Loading ${name}…`);
+        const generate = LOADERS[engine](options);
+        loaded = { key, generate };
+        generate.catch(() => { if (loaded?.generate === generate) loaded = null; });
+      }
+      const generate = await loaded.generate;
+      status('');
+      const { samples, sampleRate } = await generate(text, options);
+      postMessage({ type: 'result', id, samples, sampleRate }, [samples.buffer]);
+    } catch (e) {
+      postMessage({ type: 'result', id, error: `${name}: ${e.message}` });
+    }
+  });
+};

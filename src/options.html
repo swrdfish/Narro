@@ -26,6 +26,8 @@
           </optgroup>
           <optgroup label="Local">
             <option value="kokoro">Kokoro — runs in your browser</option>
+            <option value="supertonic">Supertonic — runs in your browser</option>
+            <option value="piper">Piper — runs in your browser</option>
             <option value="localServer">Local server (OpenAI-compatible)</option>
             <option value="system">System voices</option>
           </optgroup>
@@ -64,6 +66,24 @@
             <option value="wasm">CPU (WASM)</option>
           </select>
         </label>
+      </div>
+
+      <div class="engine" data-engine="supertonic">
+        <p class="note">Supertonic 2 by Supertone runs on your machine and speaks English, Spanish, French, Portuguese and Korean. The first use downloads the model (~260 MB); after that it works offline. Model licence: OpenRAIL.</p>
+        <label class="field"><span>Voice</span><select data-key="supertonic.voice" id="supertonic-voices"></select></label>
+        <label class="field"><span>Language</span><select data-key="supertonic.language" id="supertonic-languages"></select></label>
+        <label class="field"><span>Device</span>
+          <select data-key="supertonic.device">
+            <option value="auto">Auto (WebGPU if available)</option>
+            <option value="webgpu">WebGPU</option>
+            <option value="wasm">CPU (WASM)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="engine" data-engine="piper">
+        <p class="note">Piper voices run on your machine. Each voice downloads once (~60 MB, more for high quality) and then works offline. Voices come from rhasspy/piper-voices; each has its own licence on its model card.</p>
+        <label class="field"><span>Voice</span><select data-key="piper.voice" id="piper-voices"></select></label>
       </div>
 
       <div class="engine" data-engine="localServer">

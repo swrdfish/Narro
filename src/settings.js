@@ -28,6 +28,14 @@ export const DEFAULT_SETTINGS = {
     voice: 'af_heart',
     device: 'auto', // auto | webgpu | wasm
   },
+  supertonic: {
+    voice: 'F1', // F1–F5, M1–M5
+    language: 'en', // en | es | fr | pt | ko
+    device: 'auto',
+  },
+  piper: {
+    voice: 'en_US-lessac-medium', // see models.json "piper"
+  },
   localServer: {
     // Any OpenAI-compatible /audio/speech server: Kokoro-FastAPI, Orpheus-FastAPI, LocalAI, etc.
     baseUrl: 'http://localhost:8880/v1',
@@ -45,6 +53,8 @@ export const ENGINES = {
   elevenlabs: { label: 'ElevenLabs', kind: 'cloud' },
   gemini: { label: 'Google Gemini', kind: 'cloud' },
   kokoro: { label: 'Kokoro (in-browser)', kind: 'local' },
+  supertonic: { label: 'Supertonic (in-browser)', kind: 'local' },
+  piper: { label: 'Piper (in-browser)', kind: 'local' },
   localServer: { label: 'Local server (OpenAI-compatible)', kind: 'local' },
   system: { label: 'System voices', kind: 'local' },
 };
@@ -52,6 +62,13 @@ export const ENGINES = {
 export const OPENAI_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
 
 export const GEMINI_VOICES = ['Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Leda', 'Orus', 'Aoede', 'Callirrhoe', 'Autonoe', 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina', 'Erinome', 'Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar', 'Alnilam', 'Schedar', 'Gacrux', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat'];
+
+export const SUPERTONIC_VOICES = {
+  F1: 'Female 1', F2: 'Female 2', F3: 'Female 3', F4: 'Female 4', F5: 'Female 5',
+  M1: 'Male 1', M2: 'Male 2', M3: 'Male 3', M4: 'Male 4', M5: 'Male 5',
+};
+
+export const SUPERTONIC_LANGUAGES = { en: 'English', es: 'Spanish', fr: 'French', pt: 'Portuguese', ko: 'Korean' };
 
 export const KOKORO_VOICES = {
   af_heart: 'Heart (US F)', af_bella: 'Bella (US F)', af_nicole: 'Nicole (US F)', af_aoede: 'Aoede (US F)',

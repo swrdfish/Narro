@@ -1,4 +1,6 @@
-import { getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES } from './settings.js';
+import {
+  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
+} from './settings.js';
 import { shortcutKeys } from './shortcuts.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -165,11 +167,14 @@ async function init() {
   fillSelect($('#openai-voices'), Object.fromEntries(OPENAI_VOICES.map((v) => [v, v])), settings.openai.voice);
   fillSelect($('#gemini-voices'), Object.fromEntries(GEMINI_VOICES.map((v) => [v, v])), settings.gemini.voice);
   fillSelect($('#kokoro-voices'), KOKORO_VOICES, settings.kokoro.voice);
+  fillSelect($('#supertonic-voices'), SUPERTONIC_VOICES, settings.supertonic.voice);
+  fillSelect($('#supertonic-languages'), SUPERTONIC_LANGUAGES, settings.supertonic.language);
   fillSelect($('#elevenlabs-voices'), { [settings.elevenlabs.voiceId]: 'George (default) — add API key to list voices' }, settings.elevenlabs.voiceId);
   const models = await loadModels();
   fillSelect($('#openai-models'), models.openai || {}, settings.openai.model);
   fillSelect($('#elevenlabs-models'), models.elevenlabs || {}, settings.elevenlabs.model);
   fillSelect($('#gemini-models'), models.gemini || {}, settings.gemini.model);
+  fillSelect($('#piper-voices'), models.piper || {}, settings.piper.voice);
   // The local server's own model list is loaded once it's reachable (see loadDynamicVoices).
   fillSelect($('#local-models'), { [settings.localServer.model]: settings.localServer.model }, settings.localServer.model);
   addRevealButtons();

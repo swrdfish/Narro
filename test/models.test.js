@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from '../src/settings.js';
 
 const models = JSON.parse(readFileSync(new URL('../src/models.json', import.meta.url), 'utf8'));
 
-for (const engine of ['openai', 'elevenlabs', 'gemini']) {
+for (const engine of ['openai', 'elevenlabs', 'gemini', 'piper']) {
   test(`models.json lists ${engine} models as { id: label }`, () => {
     const list = models[engine];
     assert.ok(list && typeof list === 'object' && !Array.isArray(list), `"${engine}" must be an object`);
@@ -18,7 +18,12 @@ for (const engine of ['openai', 'elevenlabs', 'gemini']) {
     }
   });
 
-  test(`models.json includes the default ${engine} model`, () => {
-    assert.ok(DEFAULT_SETTINGS[engine].model in models[engine], `default "${DEFAULT_SETTINGS[engine].model}" is missing`);
+  test(`models.json includes the default ${engine} ${engine === 'piper' ? 'voice' : 'model'}`, () => {
+    const id = engine === 'piper' ? DEFAULT_SETTINGS.piper.voice : DEFAULT_SETTINGS[engine].model;
+    assert.ok(id in models[engine], `default "${id}" is missing`);
   });
 }
+
+test('Piper voice ids follow piper-voices naming (lang-speaker-quality)', () => {
+  for (const id of Object.keys(models.piper)) assert.match(id, /^[a-z]{2,3}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)$/, id);
+});

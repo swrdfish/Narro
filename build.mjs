@@ -36,8 +36,8 @@ const contexts = await Promise.all([
   esbuild.context({ ...common, entryPoints: ['src/content.js'], outfile: `${out}/content.js`, format: 'iife' }),
   esbuild.context({ ...common, entryPoints: ['src/background.js', 'src/options.js'], outdir: out, format: 'esm' }),
   esbuild.context({ ...common, entryPoints: ['src/offscreen.js'], outdir: out, format: 'esm' }),
-  // Kokoro + transformers.js (~2 MB) only load when that engine is used.
-  esbuild.context({ ...common, entryPoints: ['src/kokoro-worker.js'], outdir: out, format: 'esm', minify: true }),
+  // The in-browser voices (Kokoro, Supertonic, Piper + transformers.js) only load when used.
+  esbuild.context({ ...common, entryPoints: ['src/local-worker.js'], outdir: out, format: 'esm', minify: true }),
 ]);
 
 if (watch) {

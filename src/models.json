@@ -13,5 +13,24 @@
   "gemini": {
     "gemini-2.5-flash-preview-tts": "Gemini 2.5 Flash TTS · faster",
     "gemini-2.5-pro-preview-tts": "Gemini 2.5 Pro TTS · higher quality"
+  },
+  "piper": {
+    "en_US-lessac-medium": "Lessac · US English, female",
+    "en_US-amy-medium": "Amy · US English, female",
+    "en_US-kristin-medium": "Kristin · US English, female",
+    "en_US-hfc_female-medium": "HFC Female · US English",
+    "en_US-ryan-high": "Ryan · US English, male (high quality, 120 MB)",
+    "en_US-joe-medium": "Joe · US English, male",
+    "en_US-hfc_male-medium": "HFC Male · US English",
+    "en_GB-alba-medium": "Alba · UK English, female",
+    "en_GB-jenny_dioco-medium": "Jenny · UK English, female",
+    "en_GB-cori-high": "Cori · UK English, female (high quality, 114 MB)",
+    "en_GB-northern_english_male-medium": "Northern English · UK English, male",
+    "de_DE-thorsten-high": "Thorsten · German, male (high quality)",
+    "fr_FR-siwis-medium": "Siwis · French, female",
+    "es_ES-davefx-medium": "Davefx · Spanish, male",
+    "it_IT-paola-medium": "Paola · Italian, female",
+    "pt_BR-faber-medium": "Faber · Brazilian Portuguese, male",
+    "hi_IN-pratham-medium": "Pratham · Hindi, male"
   }
 }

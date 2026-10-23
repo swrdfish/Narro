@@ -7,6 +7,8 @@ A Chrome extension that reads web pages aloud with modern AI voices, highlightin
 - **Cloud voices**: OpenAI (`gpt-4o-mini-tts` with style instructions), ElevenLabs and Google Gemini TTS.
 - **Local voices**:
   - **Kokoro-82M in the browser**: runs on WebGPU or WASM in a worker. No server needed, and it works offline after a one-time ~90 MB download.
+  - **Supertonic 2 in the browser** (Supertone): 10 voices in English, Spanish, French, Portuguese and Korean. It's a one-time ~260 MB download. Licence: OpenRAIL.
+  - **Piper in the browser**: popular voices from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, about 60 MB per voice, downloaded once. The list is in `src/models.json` (`"piper"`) and you can extend it with any voice ID from that repository. Each voice has its own licence.
   - **Local server**: any OpenAI-compatible `/v1/audio/speech` endpoint, such as [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI), Orpheus-FastAPI or LocalAI.
   - **System voices** via `chrome.tts`.
 - **Navigation**: previous/next sentence and pause/resume.
@@ -67,7 +69,7 @@ popup / shortcuts / context menu
       │                                   │
 content.js                          offscreen.html/js: synthesizes and plays audio,
  - text.js: main-content detection,   prefetches the next 2 sentences, caches results
-   sentence segmentation, DOM Ranges     └─ kokoro-worker.js: Kokoro via ONNX Runtime Web
+   sentence segmentation, DOM Ranges     └─ local-worker.js: Kokoro, Supertonic, Piper via ONNX Runtime Web
  - highlighting and the floating player
 ```
 

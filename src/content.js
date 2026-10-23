@@ -1,7 +1,7 @@
 // Content script: builds the reading list, drives sentence-by-sentence playback,
 // highlights the current sentence and shows the floating player.
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
-import { getSettings, saveSettings, ENGINES, KOKORO_VOICES } from './settings.js';
+import { getSettings, saveSettings, ENGINES, KOKORO_VOICES, SUPERTONIC_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
@@ -29,6 +29,8 @@ function main() {
   };
   let preparation;
   const kindle = isKindleUrl(location.href) ? createKindleReader(() => {
+    // An external page change can race Kindle's rendering. The reader's own page turn is
+    // handled by nextKindlePage(), which clears this monitor before pressing Next.
     cancelPick();
     stop();
     ui.setInfo('Kindle page changed — press Play to read it.');
@@ -565,11 +567,13 @@ function main() {
 function voiceLabel(settings) {
   if (!settings) return '';
   const engine = settings.engine;
-  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', kokoro: 'Kokoro', localServer: 'Local server', system: 'System voice' }[engine] || engine;
+  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', localServer: 'Local server', system: 'System voice' }[engine] || engine;
   const voice = {
     openai: settings.openai?.voice,
     gemini: settings.gemini?.voice,
     kokoro: KOKORO_VOICES[settings.kokoro?.voice]?.replace(/ \(.*\)$/, ''),
+    supertonic: SUPERTONIC_VOICES[settings.supertonic?.voice],
+    piper: settings.piper?.voice?.split('-').slice(1, -1).join(' ').replace(/_/g, ' '),
     localServer: settings.localServer?.voice,
     system: settings.system?.voiceName,
   }[engine];
