@@ -2,6 +2,7 @@ import {
   getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
 } from './settings.js';
 import { shortcutKeys } from './shortcuts.js';
+import { enhanceSelects } from './select.js';
 
 const $ = (sel) => document.querySelector(sel);
 let settings;
@@ -201,6 +202,8 @@ function scheduleSave() {
 }
 
 async function init() {
+  // Styled dropdowns over the native selects; they follow the options and values set below.
+  enhanceSelects(document);
   settings = await getSettings();
 
   fillSelect($('#openai-voices'), Object.fromEntries(OPENAI_VOICES.map((v) => [v, v])), settings.openai.voice);

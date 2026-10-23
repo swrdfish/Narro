@@ -66,21 +66,53 @@ section { display: grid; gap: 12px; padding: 14px 0; border-top: 1px solid var(-
 .row output { font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* Text fields and dropdowns */
-input:not([type=checkbox]):not([type=range]), select, textarea {
+input:not([type=checkbox]):not([type=range]), select, textarea, .cs-button {
   width: 100%; min-height: 36px; padding: 8px 10px;
   font: inherit; color: inherit;
   background: var(--field); border: 1px solid var(--border); border-radius: 8px;
   transition: border-color .15s, box-shadow .15s;
 }
-input:not([type=checkbox]):not([type=range]):hover, select:hover, textarea:hover { border-color: var(--border-strong); }
-input:focus-visible, select:focus-visible, textarea:focus-visible {
+input:not([type=checkbox]):not([type=range]):hover, select:hover, textarea:hover, .cs-button:hover { border-color: var(--border-strong); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .cs-button:focus-visible {
   outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--ring);
 }
-select {
+select, .cs-button {
   appearance: none; padding-right: 32px; cursor: pointer;
   background-image: var(--chevron); background-repeat: no-repeat;
   background-position: right 10px center; background-size: 12px;
 }
+
+/* Custom dropdowns (src/select.js): a button and list over the hidden native <select> */
+.custom-select { position: relative; }
+.cs-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.cs-button { display: block; text-align: left; line-height: inherit; }
+.cs-button[aria-expanded="true"] { border-color: var(--green); box-shadow: 0 0 0 3px var(--ring); }
+.cs-button:disabled { opacity: .6; cursor: default; }
+.cs-value { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cs-list {
+  position: fixed; z-index: 10; margin: 0; padding: 4px; list-style: none; overflow-y: auto;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(26, 25, 23, .18);
+  animation: cs-open .12s ease-out;
+}
+.cs-list.up { animation-name: cs-open-up; }
+.cs-list ul { margin: 0; padding: 0; list-style: none; }
+.cs-group { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.cs-option {
+  position: relative; padding: 7px 10px 7px 28px; border-radius: 6px; cursor: pointer;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.cs-option.active { background: var(--field); }
+.cs-option[aria-selected="true"] { font-weight: 600; }
+.cs-option[aria-selected="true"]::before {
+  content: ''; position: absolute; left: 10px; top: 50%; width: 10px; height: 6px; margin-top: -5px;
+  border: solid var(--green); border-width: 0 0 2px 2px; transform: rotate(-45deg);
+}
+.cs-option[aria-disabled="true"] { opacity: .5; cursor: default; }
+@keyframes cs-open { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes cs-open-up { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .cs-list { animation: none; } }
 textarea { resize: vertical; line-height: 1.4; }
 
 /* API key with show/hide */
