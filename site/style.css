@@ -202,17 +202,59 @@ h1 {
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 28px; }
-  .voices { grid-template-columns: 1fr; }
-  .voice-group, .voice-group + .voice-group { padding: 22px 0 6px; border-left: 0; }
-  .voice-group + .voice-group { border-top: 1px solid var(--border); }
+  /* Stacked voice groups: each in its own card, so a group's title reads apart from its voices. */
+  .voices { grid-template-columns: 1fr; gap: 14px; border-top: 0; }
+  .voice-group, .voice-group + .voice-group {
+    padding: 18px 18px 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel);
+  }
+  .voice-group h3 { font-size: 19px; font-weight: 700; }
+  .voice-group li strong { font-weight: 400; }
   .features-section { grid-template-columns: 1fr; }
   .kindle-steps { grid-template-columns: 1fr; gap: 0; }
   .popup-shot { width: min(330px, 100%); }
 }
 @media (max-width: 560px) {
+  .top, .bottom, main > section { width: calc(100% - 40px); }
+  .top { padding: 16px 0; }
   .top nav > a { display: none; }
-  .demo-page { padding: 20px 20px 92px; font-size: 16px; }
+
+  .hero { gap: 32px; padding: 20px 0 8px; }
+  .lede { font-size: 17px; margin-bottom: 22px; }
+  .button { min-height: 48px; padding: 0 18px; }
+  .demo-page { padding: 18px 18px 84px; font-size: 15px; line-height: 1.6; }
+  .demo-page h2 { font-size: 20px; }
+  .demo-meta { margin-bottom: 12px; }
+  .demo-para { margin-bottom: 10px; }
+  .player { bottom: 14px; }
   .player .voice, .player .grip { display: none; }
+
+  .section { padding-top: 56px; }
+  .section-lede { margin-bottom: 22px; }
+
+  /* Voices: name and details on one row. */
+  .voice-group, .voice-group + .voice-group { padding: 16px 16px 4px; }
+  .voice-note { margin-bottom: 10px; font-size: 14px; }
+  .voice-group li { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 16px; padding: 9px 0; }
+  .voice-group li strong { white-space: nowrap; }
+  .voice-group li span { text-align: right; }
+
+  .features-section { gap: 32px; }
+  .features { gap: 14px; }
+  .popup-shot { width: min(270px, 100%); margin-inline: auto; }
+
+  /* Kindle steps: the number beside the title rather than above it. */
+  .kindle-steps li { grid-template-columns: 30px 1fr; column-gap: 14px; padding-top: 16px; }
+  .kindle-steps li::before { grid-row: span 2; margin: 0; }
+  .kindle-details { margin-top: 26px; }
+
+  /* Install: wrap the long clone URL instead of hiding it off the edge. */
+  .steps { padding-left: 1.2em; }
+  .steps pre { padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+
+  /* Footer: comfortable tap targets. */
+  .bottom { margin-top: 64px; padding-bottom: 28px; }
+  .bottom nav { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; width: 100%; }
+  .bottom nav a { padding: 10px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
