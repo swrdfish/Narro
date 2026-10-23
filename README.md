@@ -14,6 +14,7 @@ A Chrome extension that reads web pages aloud with modern AI voices, highlightin
 - **Stops before an incomplete last sentence**: if the page ends mid-sentence (paginated books, truncated articles), the reader stops after the last complete sentence. It also skips trailing UI text such as "Next chapter". You can turn this off.
 - **Highlighting**: the current sentence and its paragraph are highlighted with the CSS Custom Highlight API, so the page DOM isn't modified. The page auto-scrolls to follow along.
 - Speed control from 0.5× to 3× with pitch preserved.
+- **Movable player**: drag it by the grip or any empty area. The position is remembered across pages and sessions. Double-click the grip to reset it.
 
 ## Develop
 

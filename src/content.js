@@ -380,10 +380,15 @@ function createPlayer(h) {
       .info { max-width: 280px; padding: 0 6px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .info:empty { display: none; }
       .info.error { color: #dc2626; white-space: normal; }
+      .grip { display: grid; place-items: center; width: 14px; height: 32px; margin-right: -2px; color: var(--muted); cursor: grab; }
+      .grip svg { width: 14px; height: 14px; }
+      .bar { touch-action: none; user-select: none; }
+      .bar.dragging, .bar.dragging * { cursor: grabbing !important; }
       .spin { animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
     <div class="bar" role="toolbar" aria-label="AI Reader">
+      <span class="grip" title="Drag to move · double-click to reset"><svg viewBox="0 0 24 24"><path d="M8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg></span>
       <button class="prev" title="Previous sentence"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
       <button class="play" title="Play / pause"></button>
       <button class="next" title="Next sentence"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
@@ -415,12 +420,86 @@ function createPlayer(h) {
   $('.settings').onclick = h.onSettings;
   $('.pick').onclick = h.onPick;
 
+  // --- Position: draggable, remembered across pages and sessions ---
+  // Saved as the bar's center in viewport fractions so it adapts to window size.
+  const POSITION_KEY = 'playerPosition';
+  let position = null; // { cx, cy } or null for the default bottom-center spot
+  const margin = 8;
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+
+  function placeAt(left, top) {
+    const { width, height } = host.getBoundingClientRect();
+    Object.assign(host.style, {
+      left: `${clamp(left, margin, innerWidth - width - margin)}px`,
+      top: `${clamp(top, margin, innerHeight - height - margin)}px`,
+      bottom: 'auto',
+      transform: 'none',
+    });
+  }
+
+  function applyPosition() {
+    if (!host.isConnected) return;
+    if (!position) {
+      Object.assign(host.style, { left: '50%', top: 'auto', bottom: '20px', transform: 'translateX(-50%)' });
+      return;
+    }
+    const { width, height } = host.getBoundingClientRect();
+    placeAt(position.cx * innerWidth - width / 2, position.cy * innerHeight - height / 2);
+  }
+
+  chrome.storage.local.get(POSITION_KEY).then((r) => {
+    position = r[POSITION_KEY] ?? null;
+    applyPosition();
+  });
+  addEventListener('resize', applyPosition);
+
+  const bar = $('.bar');
+  bar.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('button')) return;
+    e.preventDefault();
+    const start = host.getBoundingClientRect();
+    const dx = e.clientX - start.left;
+    const dy = e.clientY - start.top;
+    let dragging = false;
+    const move = (ev) => {
+      // Start only after a small movement so clicks and double-clicks still reach their target.
+      if (!dragging) {
+        if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 4) return;
+        dragging = true;
+        bar.setPointerCapture(e.pointerId);
+        bar.classList.add('dragging');
+      }
+      placeAt(ev.clientX - dx, ev.clientY - dy);
+    };
+    const end = () => {
+      removeEventListener('pointermove', move, true);
+      removeEventListener('pointerup', end, true);
+      removeEventListener('pointercancel', end, true);
+      if (!dragging) return;
+      bar.classList.remove('dragging');
+      const r = host.getBoundingClientRect();
+      position = { cx: (r.left + r.width / 2) / innerWidth, cy: (r.top + r.height / 2) / innerHeight };
+      chrome.storage.local.set({ [POSITION_KEY]: position });
+    };
+    // On window: before capture starts, a fast first move can already be outside the bar.
+    addEventListener('pointermove', move, true);
+    addEventListener('pointerup', end, true);
+    addEventListener('pointercancel', end, true);
+  });
+
+  $('.grip').addEventListener('dblclick', () => {
+    position = null;
+    chrome.storage.local.remove(POSITION_KEY);
+    applyPosition();
+  });
+
   const ui = {
     visible: false,
     show() {
       if (!host.isConnected) document.documentElement.append(host);
       ui.visible = true;
       ui.render();
+      applyPosition();
     },
     hide() {
       host.remove();
@@ -440,6 +519,7 @@ function createPlayer(h) {
       $('.info').textContent = text || '';
       $('.info').classList.toggle('error', isError);
       $('.info').title = text || '';
+      applyPosition(); // width changed; keep the bar on screen
     },
   };
   return ui;
