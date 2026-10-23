@@ -636,8 +636,9 @@ function createPlayer(h) {
       }
       button:hover { background: var(--hover); }
       button:focus-visible { outline: 2px solid var(--accent); }
-      button.play { width: 38px; height: 38px; background: var(--accent); color: #fff; }
-      button.play:hover { filter: brightness(1.1); background: var(--accent); }
+      /* The Narro logo's colours: green with ink (white on this green would be too low-contrast). */
+      button.play { width: 38px; height: 38px; background: #4fb56e; color: #1a1917; }
+      button.play:hover { filter: brightness(1.08); background: #4fb56e; }
       button.small { width: 24px; height: 24px; }
       button.small svg { width: 14px; height: 14px; }
       button.pick.active { background: var(--accent); color: #fff; }
