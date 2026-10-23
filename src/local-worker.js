@@ -8,6 +8,16 @@ import { downloadProgress } from './progress.js';
 
 const ENGINE_NAMES = { kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper' };
 
+// Keep chrome://extensions → Errors for real problems. ONNX Runtime warns, for example, when a few
+// model nodes run on the CPU under WebGPU (expected, "to improve perf"), and Transformers.js warns
+// when a download has no Content-Length header (it grows its buffer instead). Neither affects speech.
+ort.env.logLevel = 'error';
+const consoleWarn = console.warn.bind(console);
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && args[0].startsWith('Unable to determine content-length')) return;
+  consoleWarn(...args);
+};
+
 const status = (text) => postMessage({ type: 'status', status: text });
 
 async function useWebGpu(device) {
