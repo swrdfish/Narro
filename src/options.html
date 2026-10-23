@@ -92,12 +92,9 @@
     </section>
 
     <footer>
-      <dl class="shortcuts">
-        <dt>Play / pause</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>R</kbd></dd>
-        <dt>Previous / next</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>←</kbd><kbd>→</kbd></dd>
-        <dt>Stop</dt><dd><kbd>Alt</kbd><kbd>Shift</kbd><kbd>S</kbd></dd>
-        <dt>Jump to a sentence</dt><dd><kbd>Alt</kbd>+click</dd>
-      </dl>
+      <!-- Filled from chrome.commands, in the platform's notation. -->
+      <dl class="shortcuts" id="shortcuts"></dl>
+      <button type="button" class="link-button" id="change-shortcuts">Change shortcuts</button>
       <p id="status" role="status"></p>
     </footer>
   </main>

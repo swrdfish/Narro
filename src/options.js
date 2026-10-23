@@ -1,4 +1,5 @@
 import { getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES } from './settings.js';
+import { shortcutKeys } from './shortcuts.js';
 
 const $ = (sel) => document.querySelector(sel);
 let settings;
@@ -39,6 +40,50 @@ function addRevealButtons() {
     render();
     input.after(button);
   }
+}
+
+// --- Keyboard shortcuts, shown as assigned in Chrome and in the platform's notation ---
+
+const SHORTCUT_ROWS = [
+  ['toggle-reading', 'Play / pause'],
+  ['prev-sentence', 'Previous sentence'],
+  ['next-sentence', 'Next sentence'],
+  ['stop-reading', 'Stop'],
+  ['pick-start', 'Choose where to start'],
+];
+function keyCaps(keys) {
+  return keys.map(({ label, name }) => {
+    const kbd = document.createElement('kbd');
+    kbd.textContent = label;
+    if (name !== label) kbd.title = name;
+    return kbd;
+  });
+}
+
+async function renderShortcuts() {
+  const mac = (await chrome.runtime.getPlatformInfo()).os === 'mac';
+  const assigned = Object.fromEntries((await chrome.commands.getAll()).map((command) => [command.name, command.shortcut]));
+  const list = $('#shortcuts');
+  list.replaceChildren();
+  const row = (label, content) => {
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.append(...content);
+    list.append(dt, dd);
+  };
+  for (const [name, label] of SHORTCUT_ROWS) {
+    const keys = shortcutKeys(assigned[name], mac);
+    if (keys.length) row(label, keyCaps(keys));
+    else {
+      const unset = document.createElement('span');
+      unset.className = 'unset';
+      unset.textContent = 'Not set';
+      row(label, [unset]);
+    }
+  }
+  // Alt/Option + click is handled by the page script, not a Chrome command.
+  row('Jump to a sentence', keyCaps([...shortcutKeys('Alt', mac), { label: 'Click', name: 'Mouse click' }]));
 }
 
 function updateRangeFill(range) {
@@ -175,6 +220,9 @@ async function init() {
     if (res?.error) setStatus(res.error, true);
     else window.close();
   }
+
+  renderShortcuts();
+  $('#change-shortcuts').onclick = () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 
   showEngine();
 }

@@ -148,6 +148,12 @@ footer { border-top: 1px solid var(--border); padding-top: 12px; color: var(--mu
 .shortcuts { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; }
 .shortcuts dt { margin: 0; }
 .shortcuts dd { margin: 0; display: flex; gap: 3px; align-items: center; justify-content: flex-end; }
+.shortcuts .unset { font-style: italic; }
+.link-button {
+  margin-top: 10px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--fg); text-decoration: underline; text-underline-offset: 2px;
+}
+.link-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; }
 kbd {
   min-width: 20px; padding: 1px 5px; text-align: center;
   font: 500 11px/16px system-ui, sans-serif; color: var(--fg);
