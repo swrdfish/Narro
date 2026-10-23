@@ -15,6 +15,18 @@
       </div>
     </header>
 
+    <!-- Controls for whichever tab is reading, so it can be paused or stopped from anywhere. -->
+    <div class="now-reading" id="now-reading" hidden>
+      <button type="button" class="now-title" id="now-title" title="Go to this tab">
+        <span class="now-status" id="now-status"></span>
+        <span class="now-page" id="now-page"></span>
+      </button>
+      <button type="button" class="round primary-round" id="now-toggle"></button>
+      <button type="button" class="round" id="now-stop" aria-label="Stop reading" title="Stop reading">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+    </div>
+
     <section>
       <label class="field">
         <span>Voice engine</span>

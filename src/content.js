@@ -33,9 +33,12 @@ function main() {
   const kindle = isKindleUrl(location.href) ? createKindleReader(() => {
     cancelPick();
     const reading = state.status === 'playing' || state.status === 'loading' || state.preparing || newPageTimer !== null;
-    stop();
+    stop({ report: false }); // carrying on with the new page isn't a stop for the badge or popup
     if (reading) readNewPage();
-    else ui.setInfo('Kindle page changed — press Play to read it.'); // paused: stay quiet
+    else {
+      ui.setInfo('Kindle page changed — press Play to read it.'); // paused: stay quiet
+      reportStatus();
+    }
   }) : null;
 
   // Starts reading the page now showing, after a short pause so rapid page flips settle on the
@@ -50,6 +53,7 @@ function main() {
       newPageTimer = null;
       start();
     }, 400);
+    reportStatus();
   }
 
   // --- Highlighting -----------------------------------------------------------------------------
@@ -297,6 +301,8 @@ function main() {
     const controller = new AbortController();
     preparation = controller;
     state.preparing = true;
+    reportStatus();
+    let prepared = false;
     try {
       state.settings = await getSettings();
       controller.signal.throwIfAborted();
@@ -312,6 +318,7 @@ function main() {
       controller.signal.throwIfAborted();
       if (state.sentences.length) {
         newPageRetries = 0;
+        prepared = true;
         return true;
       }
       fail(kindle ? 'No readable English text found. Try a larger font and a text page rather than the cover.' : 'No readable text found on this page.');
@@ -331,6 +338,7 @@ function main() {
         state.preparing = false;
         preparation = null;
         ui.render();
+        if (!prepared) reportStatus(); // on success, playing starts next: no "stopped" in between
       }
     }
   }
@@ -352,7 +360,7 @@ function main() {
     if (resumed && i > 0) ui.setInfo('Resuming where you left off');
   }
 
-  function stop() {
+  function stop({ report = true } = {}) {
     clearTimeout(newPageTimer);
     newPageTimer = null;
     preparation?.abort();
@@ -363,7 +371,7 @@ function main() {
     state.chunk = null;
     if (!kindle || state.status !== 'idle') send({ type: 'stop' });
     if (kindle) state.sentences = [];
-    setStatus('idle');
+    setStatus('idle', { report });
     clearHighlight();
   }
 
@@ -508,9 +516,19 @@ function main() {
     if (kindle && (state.preparing || state.status !== 'idle') && !state.picking && !onPlayer(event)) stop();
   }, { capture: true, passive: true });
 
-  function setStatus(status) {
+  function setStatus(status, { report = true } = {}) {
     state.status = status;
     ui.render();
+    if (report) reportStatus();
+  }
+
+  // Tells the background (toolbar badge, popup controls) how this tab is reading.
+  let reportedStatus = 'idle';
+  function reportStatus() {
+    const status = state.preparing || newPageTimer !== null ? 'loading' : state.status;
+    if (status === reportedStatus) return;
+    reportedStatus = status;
+    send({ type: 'reader-state', status });
   }
 
   // --- Messages ---------------------------------------------------------------------------------

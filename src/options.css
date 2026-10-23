@@ -175,6 +175,34 @@ button.primary:focus-visible, button.secondary:focus-visible { outline: 2px soli
 .note { margin: 0; color: var(--muted); }
 code { font-size: 12px; }
 
+/* Now reading: controls for the tab that's reading */
+.now-reading {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px 8px 8px 12px;
+  background: var(--field); border: 1px solid var(--border); border-radius: 12px;
+}
+.now-reading[hidden] { display: none; }
+.now-title {
+  flex: 1; min-width: 0; display: grid; gap: 1px; padding: 0; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0; cursor: pointer;
+}
+.now-title:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 4px; }
+.now-status { font-size: 11px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.now-status[data-status="playing"]::before, .now-status[data-status="loading"]::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; background: #e5484d;
+}
+.now-page { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+.now-title:hover .now-page { text-decoration: underline; text-underline-offset: 2px; }
+.round {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  color: var(--fg); background: transparent; border: 1px solid var(--border-strong); cursor: pointer;
+}
+.round:hover { background: var(--bg); }
+.round:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.round svg { width: 16px; height: 16px; fill: currentColor; }
+/* Same as the player's play button: the logo's green with an ink icon. */
+.round.primary-round { background: #4fb56e; border-color: #4fb56e; color: #1a1917; }
+.round.primary-round:hover { filter: brightness(1.08); background: #4fb56e; }
+
 /* Shortcuts */
 footer { border-top: 1px solid var(--border); padding-top: 12px; color: var(--muted); font-size: 12px; }
 .shortcuts { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; }

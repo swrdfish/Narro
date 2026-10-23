@@ -1,6 +1,7 @@
 // Service worker: routes messages between the page (content script), the offscreen audio
 // player, and chrome.tts. Kept stateless apart from chrome.storage.session so it survives restarts.
 import { getSettings } from './settings.js';
+import { READER_STATE_KEY, nextReaderState, badgeFor } from './reader-state.js';
 import { captureKindle } from './kindle-capture.js';
 import { isKindleUrl } from './kindle-data.js';
 
@@ -37,6 +38,29 @@ async function stopSpeech() {
   await toOffscreen({ cmd: 'stop' }, { create: false });
 }
 
+// --- Reading state: toolbar badge and the popup's remote controls -------------------------------
+
+async function setReaderState(state) {
+  if (state) await chrome.storage.session.set({ [READER_STATE_KEY]: state });
+  else await chrome.storage.session.remove(READER_STATE_KEY);
+  const badge = badgeFor(state);
+  if (badge.color) await chrome.action.setBadgeBackgroundColor({ color: badge.color });
+  if (badge.textColor) await chrome.action.setBadgeTextColor?.({ color: badge.textColor });
+  await chrome.action.setBadgeText({ text: badge.text });
+}
+
+async function reportState(tab, status) {
+  const current = (await chrome.storage.session.get(READER_STATE_KEY))[READER_STATE_KEY] ?? null;
+  await setReaderState(nextReaderState(current, { tabId: tab.id, status, title: tab.title }));
+}
+
+async function clearReaderState(tabId) {
+  const current = (await chrome.storage.session.get(READER_STATE_KEY))[READER_STATE_KEY];
+  if (current?.tabId === tabId) await setReaderState(null);
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => clearReaderState(tabId));
+
 // The reading page holds a port open while reading. Chrome closes it when the page is refreshed,
 // navigated away or closed, so the audio stops with it instead of playing on in the background.
 chrome.runtime.onConnect.addListener((port) => {
@@ -44,6 +68,7 @@ chrome.runtime.onConnect.addListener((port) => {
   const tabId = port.sender.tab.id;
   port.onDisconnect.addListener(async () => {
     const { readerTab } = await chrome.storage.session.get('readerTab');
+    await clearReaderState(tabId);
     if (readerTab !== tabId) return; // another tab is reading now
     await chrome.storage.session.remove('readerTab');
     await stopSpeech();
@@ -117,6 +142,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const { tabId, target, type, ...rest } = msg;
     toTab(tabId, { type: 'tts-event', ...rest });
     return;
+  }
+  if (msg.type === 'reader-state' && sender.tab) {
+    reportState(sender.tab, msg.status).then(() => sendResponse({ ok: true }), (e) => sendResponse({ error: e.message }));
+    return true;
+  }
+  // From Narro's popup or settings page (which can also be open in a tab): play/pause or stop
+  // whichever tab is reading.
+  if (msg.type === 'remote-control' && sender.url?.startsWith(chrome.runtime.getURL(''))) {
+    chrome.storage.session.get(READER_STATE_KEY).then(async ({ [READER_STATE_KEY]: state }) => {
+      if (!state) return { error: 'Nothing is being read.' };
+      await chrome.tabs.sendMessage(state.tabId, { type: 'control', action: msg.action }).catch(() => clearReaderState(state.tabId));
+      return { ok: true };
+    }).then(sendResponse, (e) => sendResponse({ error: e.message }));
+    return true;
   }
   if (msg.type === 'start-reading') {
     startReading(msg.tabId, msg.mode).then(sendResponse, (e) => sendResponse({ error: e.message }));

@@ -45,6 +45,41 @@ function addRevealButtons() {
   }
 }
 
+// --- Now reading: pause/resume or stop whichever tab is reading ---
+
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+const STATUS_LABELS = { playing: 'Reading', loading: 'Starting…', paused: 'Paused' };
+
+function renderNowReading(state) {
+  $('#now-reading').hidden = !state;
+  if (!state) return;
+  $('#now-status').textContent = STATUS_LABELS[state.status] || '';
+  $('#now-status').dataset.status = state.status;
+  $('#now-page').textContent = state.title || 'Untitled page';
+  const paused = state.status === 'paused';
+  $('#now-toggle').innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+  $('#now-toggle').setAttribute('aria-label', paused ? 'Resume reading' : 'Pause reading');
+  $('#now-toggle').title = $('#now-toggle').getAttribute('aria-label');
+}
+
+async function setUpNowReading() {
+  const key = 'readerState';
+  renderNowReading((await chrome.storage.session.get(key))[key]);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'session' && key in changes) renderNowReading(changes[key].newValue);
+  });
+  const control = (action) => chrome.runtime.sendMessage({ type: 'remote-control', action });
+  $('#now-toggle').onclick = () => control('toggle');
+  $('#now-stop').onclick = () => control('stop');
+  $('#now-title').onclick = async () => {
+    const { [key]: state } = await chrome.storage.session.get(key);
+    if (!state) return;
+    const tab = await chrome.tabs.update(state.tabId, { active: true }).catch(() => null);
+    if (tab) await chrome.windows.update(tab.windowId, { focused: true });
+  };
+}
+
 // --- Keyboard shortcuts, shown as assigned in Chrome and in the platform's notation ---
 
 const SHORTCUT_ROWS = [
@@ -273,6 +308,7 @@ async function init() {
   }
 
   renderShortcuts();
+  setUpNowReading();
   $('#change-shortcuts').onclick = () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 
   showEngine();
