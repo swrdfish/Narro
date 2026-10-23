@@ -113,8 +113,9 @@ its own `/v1/models` endpoint.
 ## Development
 
 ```sh
-npm run watch      # rebuild on changes
-npm test           # test suite (Node's test runner + jsdom)
+npm run watch          # rebuild the extension on changes
+npm test               # test suite (Node's test runner + jsdom)
+npm run site:preview   # preview the landing page (site/) at http://localhost:8000
 ```
 
 After a rebuild, reload Narro at `chrome://extensions`, then reload the tab you're testing on. See
