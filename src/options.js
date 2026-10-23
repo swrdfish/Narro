@@ -1,6 +1,4 @@
-import {
-  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, OPENAI_MODELS, ELEVENLABS_MODELS, GEMINI_MODELS,
-} from './settings.js';
+import { getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES } from './settings.js';
 
 const $ = (sel) => document.querySelector(sel);
 let settings;
@@ -53,6 +51,18 @@ function updateStyleField() {
   $('#openai-style').hidden = !/gpt-4o/.test(settings.openai.model);
 }
 
+// Model lists per engine ({ id: label }), from models.json. A saved model missing from a list stays selectable.
+async function loadModels() {
+  try {
+    const res = await fetch(chrome.runtime.getURL('models.json'));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    setStatus(`Couldn't load models.json: ${e.message}`, true);
+    return {};
+  }
+}
+
 function setStatus(text, isError = false) {
   $('#status').textContent = text;
   $('#status').classList.toggle('error', isError);
@@ -62,6 +72,8 @@ function showEngine() {
   for (const el of document.querySelectorAll('.engine')) el.classList.toggle('active', el.dataset.engine === settings.engine);
   loadDynamicVoices();
 }
+
+let voiceErrorShown = false; // only clear the status line if this loader set it
 
 async function loadDynamicVoices() {
   try {
@@ -86,9 +98,13 @@ async function loadDynamicVoices() {
       const voices = await chrome.tts.getVoices();
       fillSelect($('#system-voices'), { '': 'Default', ...Object.fromEntries(voices.map((v) => [v.voiceName, `${v.voiceName}${v.lang ? ` (${v.lang})` : ''}`])) }, settings.system.voiceName);
     }
-    setStatus('');
+    if (voiceErrorShown) setStatus('');
+    voiceErrorShown = false;
   } catch (e) {
-    if (settings.engine !== 'localServer') setStatus(`Couldn't load voices: ${e.message}`, true);
+    if (settings.engine !== 'localServer') {
+      setStatus(`Couldn't load voices: ${e.message}`, true);
+      voiceErrorShown = true;
+    }
   }
 }
 
@@ -105,9 +121,10 @@ async function init() {
   fillSelect($('#gemini-voices'), Object.fromEntries(GEMINI_VOICES.map((v) => [v, v])), settings.gemini.voice);
   fillSelect($('#kokoro-voices'), KOKORO_VOICES, settings.kokoro.voice);
   fillSelect($('#elevenlabs-voices'), { [settings.elevenlabs.voiceId]: 'George (default) — add API key to list voices' }, settings.elevenlabs.voiceId);
-  fillSelect($('#openai-models'), OPENAI_MODELS, settings.openai.model);
-  fillSelect($('#elevenlabs-models'), ELEVENLABS_MODELS, settings.elevenlabs.model);
-  fillSelect($('#gemini-models'), GEMINI_MODELS, settings.gemini.model);
+  const models = await loadModels();
+  fillSelect($('#openai-models'), models.openai || {}, settings.openai.model);
+  fillSelect($('#elevenlabs-models'), models.elevenlabs || {}, settings.elevenlabs.model);
+  fillSelect($('#gemini-models'), models.gemini || {}, settings.gemini.model);
   // The local server's own model list is loaded once it's reachable (see loadDynamicVoices).
   fillSelect($('#local-models'), { [settings.localServer.model]: settings.localServer.model }, settings.localServer.model);
   addRevealButtons();

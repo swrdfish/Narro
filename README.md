@@ -16,6 +16,19 @@ A Chrome extension that reads web pages aloud with modern AI voices, highlightin
 - Speed control from 0.5× to 3× with pitch preserved.
 - **Movable player**: drag it by the grip or any empty area. The position is remembered across pages and sessions. Double-click the grip to reset it.
 
+## Model lists
+
+The **Model** dropdowns for OpenAI, ElevenLabs and Gemini come from `src/models.json`. It holds one object per engine, mapping each model ID to the label shown in the dropdown:
+
+```json
+{ "openai": { "tts-1": "tts-1 · fastest" } }
+```
+
+- To make a permanent change, edit `src/models.json` and run `npm run build`.
+- To make a quick change without rebuilding, edit `dist/models.json` and reload the extension. The next build overwrites this copy.
+
+The settings page reads the file each time it opens. A saved model that's missing from the list stays selectable. The local server's list comes from the server's own `/v1/models` endpoint instead.
+
 ## Develop
 
 ```sh

@@ -1,0 +1,17 @@
+{
+  "openai": {
+    "gpt-4o-mini-tts": "gpt-4o-mini-tts · follows style instructions",
+    "tts-1-hd": "tts-1-hd · higher fidelity",
+    "tts-1": "tts-1 · fastest"
+  },
+  "elevenlabs": {
+    "eleven_flash_v2_5": "Flash v2.5 · lowest latency",
+    "eleven_turbo_v2_5": "Turbo v2.5 · fast, higher quality",
+    "eleven_multilingual_v2": "Multilingual v2 · most natural",
+    "eleven_v3": "v3 · most expressive"
+  },
+  "gemini": {
+    "gemini-2.5-flash-preview-tts": "Gemini 2.5 Flash TTS · faster",
+    "gemini-2.5-pro-preview-tts": "Gemini 2.5 Pro TTS · higher quality"
+  }
+}

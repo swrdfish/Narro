@@ -48,25 +48,6 @@ export const ENGINES = {
   system: { label: 'System voices', kind: 'local' },
 };
 
-// Speech models offered in the settings. A saved model missing from a list stays selectable.
-export const OPENAI_MODELS = {
-  'gpt-4o-mini-tts': 'gpt-4o-mini-tts · follows style instructions',
-  'tts-1-hd': 'tts-1-hd · higher fidelity',
-  'tts-1': 'tts-1 · fastest',
-};
-
-export const ELEVENLABS_MODELS = {
-  eleven_flash_v2_5: 'Flash v2.5 · lowest latency',
-  eleven_turbo_v2_5: 'Turbo v2.5 · fast, higher quality',
-  eleven_multilingual_v2: 'Multilingual v2 · most natural',
-  eleven_v3: 'v3 · most expressive',
-};
-
-export const GEMINI_MODELS = {
-  'gemini-2.5-flash-preview-tts': 'Gemini 2.5 Flash TTS · faster',
-  'gemini-2.5-pro-preview-tts': 'Gemini 2.5 Pro TTS · higher quality',
-};
-
 export const OPENAI_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
 
 export const GEMINI_VOICES = ['Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Leda', 'Orus', 'Aoede', 'Callirrhoe', 'Autonoe', 'Enceladus', 'Iapetus', 'Umbriel', 'Algieba', 'Despina', 'Erinome', 'Algenib', 'Rasalgethi', 'Laomedeia', 'Achernar', 'Alnilam', 'Schedar', 'Gacrux', 'Pulcherrima', 'Achird', 'Zubenelgenubi', 'Vindemiatrix', 'Sadachbia', 'Sadaltager', 'Sulafat'];

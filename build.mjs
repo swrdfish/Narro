@@ -23,6 +23,8 @@ cpSync('manifest.json', `${out}/manifest.json`);
 cpSync('icons', `${out}/icons`, { recursive: true });
 cpSync('src/fonts', `${out}/fonts`, { recursive: true });
 for (const f of ['offscreen.html', 'options.html', 'options.css']) cpSync(`src/${f}`, `${out}/${f}`);
+// Read by the settings page at runtime, so dist/models.json can be edited without rebuilding.
+cpSync('src/models.json', `${out}/models.json`);
 // ONNX Runtime loads these at runtime; MV3 forbids fetching code from a CDN, so ship them.
 for (const f of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
   cpSync(`node_modules/@huggingface/transformers/dist/${f}`, `${out}/ort/${f}`);
