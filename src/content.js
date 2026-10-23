@@ -3,6 +3,10 @@
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
 import { getSettings, saveSettings, ENGINES, KOKORO_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
+import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction } from './chunks.js';
+
+// Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
+const EARLY_TURN_LEAD = 1.5;
 
 if (!window.__aiReader) {
   window.__aiReader = true;
@@ -14,6 +18,7 @@ function main() {
     sentences: [],
     idx: 0,
     seq: 0,
+    chunk: null, // { start, end }: sentences in the clip being spoken
     status: 'idle', // idle | loading | playing | paused
     rate: 1,
     settings: null,
@@ -100,17 +105,53 @@ function main() {
     return chrome.runtime.sendMessage(msg).catch((e) => ({ error: e.message }));
   }
 
-  async function play(i) {
+  // System voices don't report playback progress, so they get one sentence per request.
+  const singleSentence = () => state.settings?.engine === 'system';
+
+  // The next `count` chunks starting at sentence `from`, as text.
+  function chunksFrom(sentences, from, count) {
+    const texts = [];
+    for (let start = from; texts.length < count && start < sentences.length;) {
+      const end = chunkEnd(sentences, start, { single: singleSentence() });
+      texts.push(chunkText(sentences, start, end));
+      start = end + 1;
+    }
+    return texts;
+  }
+
+  // Speaks sentences from `i` as one clip (a chunk); the highlight follows playback progress.
+  // `first`: starting or jumping, so begin with a single sentence for a quick start.
+  async function play(i, { first = true } = {}) {
     if (state.preparing) return;
     if (kindle && i === state.sentences.length && i > 0 && state.settings?.autoTurnPages) return nextKindlePage();
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
+    const end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
+    state.chunk = { start: i, end };
     const seq = ++state.seq;
     setStatus('loading');
     highlight(i);
-    const prefetch = state.sentences.slice(i + 1, i + 3).map((s) => s.text);
-    const res = await send({ type: 'speak', seq, text: state.sentences[i].text, prefetch });
+    const prefetch = chunksFrom(state.sentences, end + 1, 2);
+    const res = await send({ type: 'speak', seq, text: chunkText(state.sentences, i, end), prefetch });
     if (res?.error && seq === state.seq) fail(res.error);
+  }
+
+  function followProgress(time, duration) {
+    const { chunk } = state;
+    if (!chunk || chunk.start === chunk.end || !(duration > 0)) return;
+    const i = sentenceAtFraction(state.sentences, chunk.start, chunk.end, time / duration);
+    if (i !== state.idx) {
+      state.idx = i;
+      highlight(i);
+      ui.render();
+    }
+    // When the page's last two sentences share this clip there is no clip boundary between them:
+    // turn the page when the second-to-last sentence has about EARLY_TURN_LEAD seconds left.
+    const last = state.sentences.length - 1;
+    if (kindle && chunk.end === last && chunk.start < last) {
+      const secondLastEnds = sentenceEndFraction(state.sentences, chunk.start, chunk.end, last - 1) * duration;
+      if ((secondLastEnds - time) / (state.rate || 1) <= EARLY_TURN_LEAD) turnEarly();
+    }
   }
 
   function pause() {
@@ -147,7 +188,7 @@ function main() {
       signal.throwIfAborted();
       if (!sentences.length) return { error: 'No readable English text found. Try a larger font and a text page rather than the cover.' };
       // Have the voice ready for the new page by the time the current sentence ends.
-      send({ type: 'prefetch', texts: sentences.slice(0, 2).map((sentence) => sentence.text) });
+      send({ type: 'prefetch', texts: chunksFrom(sentences, 0, 2) });
       return { sentences };
     } catch (error) {
       return signal.aborted ? null : { error: error.message };
@@ -162,11 +203,13 @@ function main() {
     return upcoming;
   }
 
-  // The second-to-last sentence on the page is about to end: turn the page now, so turning, OCR
-  // and voice prefetch run while the last sentence plays. A one-sentence page turns on that one.
+  // Turn the page while the page's last sentence is still to be heard, so turning, OCR and voice
+  // prefetch overlap playback. Called when a clip nearly ends, and (via followProgress) when the
+  // second-to-last sentence nearly ends inside a clip that also holds the last one. Only clips
+  // that reach the second-to-last sentence qualify; a one-sentence page turns on that one.
   function turnEarly() {
     if (!kindle || upcoming || state.preparing || !state.settings?.autoTurnPages || !state.settings.earlyPageTurn) return;
-    if (state.idx === Math.max(0, state.sentences.length - 2)) startNextKindlePage();
+    if (state.chunk && state.chunk.end >= Math.max(0, state.sentences.length - 2)) startNextKindlePage();
   }
 
   // End of a Kindle page: continue on the next one. Text cut off at the turn is carried over.
@@ -191,7 +234,7 @@ function main() {
     }
     if (result.error) return fail(result.error);
     state.sentences = result.sentences;
-    play(0);
+    play(0, { first: false }); // its first chunk was prefetched while the last page finished
   }
 
   async function prepare() {
@@ -241,6 +284,7 @@ function main() {
     upcoming = null;
     state.preparing = false;
     state.seq++;
+    state.chunk = null;
     if (!kindle || state.status !== 'idle') send({ type: 'stop' });
     if (kindle) state.sentences = [];
     setStatus('idle');
@@ -424,8 +468,11 @@ function main() {
       case 'nearly-ended':
         if (state.status === 'playing') turnEarly();
         break;
+      case 'progress':
+        followProgress(msg.time, msg.duration);
+        break;
       case 'ended':
-        if (state.status !== 'paused') play(state.idx + 1);
+        if (state.status !== 'paused') play(state.chunk.end + 1, { first: false });
         break;
       case 'status':
         ui.setInfo(msg.status);

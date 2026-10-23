@@ -281,3 +281,35 @@ test('early page turn on a one-sentence page triggers on that sentence', async (
     context.dom.window.close();
   }
 });
+
+test('after a stop, re-reading the new page still starts with the sentence carried from the previous page', async () => {
+  const context = fixture();
+  const next = context.window.document.createElement('button');
+  next.id = 'kr-chevron-right';
+  let pressed = false;
+  next.addEventListener('pointerdown', () => { pressed = true; });
+  next.addEventListener('click', () => { if (pressed) { pressed = false; context.page.src = 'blob:https://read.amazon.in/second-page'; } });
+  context.window.document.body.append(next);
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'By', 'noon', 'the'));
+    await flush();
+    context.message({ type: 'tts-event', event: 'ended', seq: speaks(context).at(-1).seq });
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    context.complete(line('harbor', 'was', 'empty.', 'Rain', 'came.'));
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'By noon the harbor was empty.');
+
+    context.message({ type: 'control', action: 'stop' });
+    await flush();
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('harbor', 'was', 'empty.', 'Rain', 'came.'));
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'By noon the harbor was empty.', 'not the bare fragment "harbor was empty."');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});

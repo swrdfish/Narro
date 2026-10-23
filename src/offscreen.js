@@ -61,7 +61,10 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
     audio.onended = () => current === token && emit(tabId, seq, 'ended');
     audio.onerror = () => current === token && emit(tabId, seq, 'error', { message: 'Audio playback failed.' });
     audio.ontimeupdate = () => {
-      if (current !== token || token.nearlyEnded || !Number.isFinite(audio.duration)) return;
+      if (current !== token || !Number.isFinite(audio.duration)) return;
+      // Lets the reader move the highlight through a clip that holds several sentences.
+      emit(tabId, seq, 'progress', { time: audio.currentTime, duration: audio.duration });
+      if (token.nearlyEnded) return;
       if ((audio.duration - audio.currentTime) / audio.playbackRate <= NEARLY_ENDED_LEAD) {
         token.nearlyEnded = true;
         emit(tabId, seq, 'nearly-ended');

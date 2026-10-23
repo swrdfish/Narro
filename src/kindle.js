@@ -109,6 +109,8 @@ export function createKindleReader(onChange) {
   let picking = false;
   // Text cut off at the end of the last page read, spoken with its continuation on the next page.
   let carry = null; // { text, book, page }
+  // What was carried onto each page, so re-reading a page (after a stop) still starts with the full sentence.
+  const carriedOnto = new Map(); // page key -> carried text
   const host = document.createElement('div');
   host.id = 'ai-reader-kindle-overlay';
   host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483646;pointer-events:none;';
@@ -232,14 +234,21 @@ export function createKindleReader(onChange) {
           guards.firstChild.focus({ preventScroll: true });
         }
         const book = new URL(location.href).searchParams.get('asin');
+        // Identify the page by its images, not the window size, so resizing can't look like a new page.
+        const page = `${book}|${surfaces.map((surface) => surface.element.currentSrc || surface.element.src || initial).join('|')}`;
         const tail = [];
-        // Only a different page of the same book continues the carried text (not a re-read of this one).
-        const carried = carry && carry.book === book && carry.page !== initial ? carry.text : '';
+        // A different page of the same book continues the carried text; a re-read reuses what it got before.
+        let carried = carriedOnto.get(page) ?? '';
+        if (carry && carry.book === book && carry.page !== page) {
+          carried = carry.text;
+          carriedOnto.set(page, carried);
+          while (carriedOnto.size > 20) carriedOnto.delete(carriedOnto.keys().next().value);
+        }
         const sentences = buildSpreadSentences(
           result.pages.map((page, index) => ({ paragraphs: page.paragraphs, rect: surfaces[index].rect, width: page.width, height: page.height })),
           { ...options, carry: carried, tail },
         );
-        carry = tail.length ? { text: tail.join(' '), book, page: initial } : null;
+        carry = tail.length ? { text: tail.join(' '), book, page } : null;
         onStatus('Kindle: local OCR');
         return sentences;
       } finally {
