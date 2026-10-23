@@ -1,7 +1,8 @@
 // Shared settings schema. API keys live in chrome.storage.local (never synced).
 
 export const DEFAULT_SETTINGS = {
-  engine: 'openai', // openai | elevenlabs | gemini | kokoro | localServer | system
+  // Kokoro by default: it runs in the browser, so a new install reads aloud with no API key.
+  engine: 'kokoro', // openai | elevenlabs | gemini | kokoro | localServer | system
   rate: 1.0,
   skipIncompleteLast: true,
   autoScroll: true,
