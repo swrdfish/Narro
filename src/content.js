@@ -530,7 +530,7 @@ function createPlayer(h) {
       .spin { animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
-    <div class="bar" role="toolbar" aria-label="AI Reader">
+    <div class="bar" role="toolbar" aria-label="Narro">
       <span class="grip" title="Drag to move · double-click to reset"><svg viewBox="0 0 24 24"><path d="M8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg></span>
       <button class="prev" title="Previous sentence"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
       <button class="play" title="Play / pause"></button>

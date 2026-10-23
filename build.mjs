@@ -20,6 +20,8 @@ cpSync('node_modules/tesseract.js/LICENSE.md', `${out}/ocr/TESSERACT-LICENSE.md`
 cpSync('node_modules/tesseract.js-core/LICENSE', `${out}/ocr/CORE-LICENSE`);
 
 cpSync('manifest.json', `${out}/manifest.json`);
+cpSync('icons', `${out}/icons`, { recursive: true });
+cpSync('src/fonts', `${out}/fonts`, { recursive: true });
 for (const f of ['offscreen.html', 'options.html', 'options.css']) cpSync(`src/${f}`, `${out}/${f}`);
 // ONNX Runtime loads these at runtime; MV3 forbids fetching code from a CDN, so ship them.
 for (const f of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {

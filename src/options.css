@@ -9,7 +9,15 @@
 body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, -apple-system, sans-serif; }
 main { width: 360px; padding: 14px 16px; margin: 0 auto; }
 header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+@font-face {
+  font-family: 'Geist';
+  src: url('fonts/Geist-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
 h1 { font-size: 16px; margin: 0; }
+.wordmark { display: flex; align-items: center; gap: 12px; font: 600 20px/1 'Geist', system-ui, sans-serif; letter-spacing: -0.03em; }
+.wordmark img { display: block; }
 section { display: grid; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); }
 .engine { display: none; gap: 10px; }
 .engine.active { display: grid; }
