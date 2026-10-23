@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Narro: read any web page aloud with natural AI voices</title>
+  <meta name="description" content="Narro is a free, open-source Chrome extension that reads web pages aloud with natural AI voices and highlights each sentence. Use cloud voices with your own key, or voices that run entirely in your browser.">
+  <meta name="theme-color" content="#1a1917">
+  <link rel="icon" href="narro.svg" type="image/svg+xml">
+  <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icon-128.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Narro: read any web page aloud">
+  <meta property="og:description" content="Natural AI voices, sentence highlighting, and voices that run entirely in your browser. Free and open source.">
+  <meta property="og:url" content="https://swrdfish.github.io/Narro/">
+  <meta property="og:image" content="https://swrdfish.github.io/Narro/player.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <a class="brand" href="./" aria-label="Narro home">
+      <img src="narro.svg" width="28" height="28" alt="">
+      <span>Narro</span>
+    </a>
+    <nav aria-label="Page sections">
+      <a href="#voices">Voices</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/swrdfish/Narro">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Hear any page, read&nbsp;aloud.</h1>
+        <p class="lede">Narro is a Chrome extension that reads the page you're on in a natural AI voice, highlighting each sentence as it goes. Use a cloud voice with your own key, or one that runs entirely in your browser.</p>
+        <div class="actions">
+          <a class="button primary" href="#install">Install Narro</a>
+          <a class="button" href="https://github.com/swrdfish/Narro">View on GitHub</a>
+        </div>
+        <p class="fine">Free and open source · MIT licence</p>
+      </div>
+
+      <!-- A small working imitation of Narro reading a page. -->
+      <figure class="demo" aria-label="Demo: Narro highlighting each sentence as it reads an article">
+        <div class="window">
+          <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+          <article class="demo-page">
+            <h2>The Mill on the River</h2>
+            <p class="demo-meta">A short story · 4 min read</p>
+            <p class="demo-para"><span class="s">The river bent twice before it reached the old mill.</span> <span class="s">Nobody in the village remembered who had built it.</span></p>
+            <p class="demo-para"><span class="s">Each spring the water rose and covered the lower steps.</span> <span class="s">Children dared each other to touch the rusted wheel.</span></p>
+            <p class="demo-para"><span class="s">One summer a stranger arrived with a box of tools.</span> <span class="s">He said he could make the wheel turn again by autumn.</span></p>
+          </article>
+          <div class="player" aria-hidden="true">
+            <span class="grip">⠿</span>
+            <svg class="ctl" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+            <button class="play" type="button" tabindex="-1">
+              <svg class="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+              <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <svg class="ctl" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+            <span class="count"><span class="now">1</span> / 6</span>
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="voice">Kokoro · Heart</span>
+          </div>
+        </div>
+        <button class="demo-toggle" type="button" aria-pressed="false">Pause demo</button>
+      </figure>
+    </section>
+
+    <section id="voices" class="section">
+      <h2>Pick a voice you'll enjoy listening to</h2>
+      <p class="section-lede">Narro works with the voices you already pay for, and with voices that need no account at all.</p>
+      <div class="voices">
+        <div class="voice-group">
+          <h3>In your browser</h3>
+          <p class="voice-note">No account, works offline after a one-time download. Nothing you read leaves your computer.</p>
+          <ul>
+            <li><strong>Kokoro</strong><span>The default · ~90 MB</span></li>
+            <li><strong>Supertonic 2</strong><span>5 languages, 10 voices · ~260 MB</span></li>
+            <li><strong>Piper</strong><span>Many languages · ~60 MB per voice</span></li>
+          </ul>
+        </div>
+        <div class="voice-group">
+          <h3>Cloud</h3>
+          <p class="voice-note">The most expressive voices, using your own API key.</p>
+          <ul>
+            <li><strong>OpenAI</strong><span>With style instructions</span></li>
+            <li><strong>ElevenLabs</strong><span>Your own voice library</span></li>
+            <li><strong>Google Gemini</strong><span>30 voices</span></li>
+            <li><strong>OpenRouter</strong><span>One key, many providers</span></li>
+          </ul>
+        </div>
+        <div class="voice-group">
+          <h3>Other</h3>
+          <p class="voice-note">Bring your own setup.</p>
+          <ul>
+            <li><strong>Local server</strong><span>Any OpenAI-compatible speech server</span></li>
+            <li><strong>System voices</strong><span>Your computer's built-in voices</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section features-section">
+      <div class="features-copy">
+        <h2>Made for actually reading</h2>
+        <ul class="features">
+          <li><strong>Follow along.</strong> Each sentence is highlighted as it's spoken, and the page scrolls with you.</li>
+          <li><strong>Natural rhythm.</strong> Sentences are voiced together, so the voice doesn't reset at every full stop.</li>
+          <li><strong>Start anywhere.</strong> Pick a sentence with <em>Start from…</em>, or select text and right-click.</li>
+          <li><strong>Picks up where you left off.</strong> Narro remembers your place on every page.</li>
+          <li><strong>Control it from any tab.</strong> Pause or stop from the toolbar; a red ▶︎ shows while it plays.</li>
+          <li><strong>Books too.</strong> Reads Kindle Cloud Reader pages with on-device text recognition and turns the pages for you.</li>
+        </ul>
+      </div>
+      <figure class="popup-shot">
+        <img src="popup.png" width="392" height="579" alt="Narro's popup, showing the page being read with pause and stop buttons, and the voice engine, voice and speed settings">
+      </figure>
+    </section>
+
+    <section id="privacy" class="section privacy">
+      <h2>Private by default</h2>
+      <ul>
+        <li>With an in-browser voice, nothing you read leaves your computer.</li>
+        <li>With a cloud voice, the text goes only to the provider you chose, under your own account.</li>
+        <li>API keys stay in your browser and are never synced.</li>
+        <li>No analytics, no accounts, no servers of our own.</li>
+      </ul>
+    </section>
+
+    <section id="install" class="section install">
+      <h2>Install Narro</h2>
+      <p class="section-lede">Narro isn't on the Chrome Web Store yet. Building it takes about a minute.</p>
+      <ol class="steps">
+        <li>
+          <p>Get the code and build it (needs <a href="https://nodejs.org">Node.js</a>):</p>
+          <pre><code>git clone https://github.com/swrdfish/Narro.git
+cd Narro
+npm install
+npm run build</code></pre>
+        </li>
+        <li><p>Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>.</p></li>
+        <li><p>Click <strong>Load unpacked</strong> and choose the <code>dist</code> folder.</p></li>
+        <li><p>Click the Narro icon on any page and press <strong>Read this page</strong>.</p></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="bottom">
+    <a class="brand small" href="./"><img src="narro.svg" width="20" height="20" alt=""><span>Narro</span></a>
+    <nav aria-label="Project links">
+      <a href="https://github.com/swrdfish/Narro">Source code</a>
+      <a href="https://github.com/swrdfish/Narro/issues">Report an issue</a>
+      <a href="https://github.com/swrdfish/Narro/blob/main/LICENSE">MIT licence</a>
+      <a href="https://swrdfish.github.io/projects/narro/">Why I built it</a>
+    </nav>
+  </footer>
+
+  <script src="demo.js" defer></script>
+</body>
+</html>

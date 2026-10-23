@@ -25,7 +25,8 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "site": "node scripts/build-site.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
