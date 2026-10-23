@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icons/narro.svg" width="96" height="96" alt="Narro logo">
+</p>
+
 # Narro
 
 Narro is a Chrome extension that reads web pages aloud with modern AI voices and highlights each
@@ -26,8 +30,8 @@ in your browser with no account and no server.
 Narro isn't on the Chrome Web Store yet. To install it:
 
 ```sh
-git clone <this repository>
-cd narro
+git clone https://github.com/swrdfish/Narro.git
+cd Narro
 npm install
 npm run build
 ```
@@ -86,6 +90,9 @@ npm test           # test suite (Node's test runner + jsdom)
 
 After a rebuild, reload Narro at `chrome://extensions`, then reload the tab you're testing on. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Found a bug or have an idea? [Open an issue](https://github.com/swrdfish/Narro/issues). You can also use the
+**Send feedback or report an issue** link at the bottom of Narro's popup.
 
 ### Architecture
 

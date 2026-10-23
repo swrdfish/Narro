@@ -27,6 +27,6 @@ rebuild, click the reload icon on Narro's card, then reload the tab you're testi
 
 ## Reporting bugs
 
-Open an issue with your Chrome version, the voice engine, what you expected and what happened. If
+[Open an issue](https://github.com/swrdfish/Narro/issues) with your Chrome version, the voice engine, what you expected and what happened. If
 the player showed an error, click it and use **Copy** to include the details. Please don't paste API
 keys, and don't paste text from paid or copyrighted books.

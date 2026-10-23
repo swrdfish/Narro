@@ -12,6 +12,14 @@
     "piper",
     "accessibility"
   ],
+  "homepage": "https://github.com/swrdfish/Narro",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swrdfish/Narro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/swrdfish/Narro/issues"
+  },
   "private": true,
   "type": "module",
   "scripts": {
