@@ -596,10 +596,11 @@ function main() {
 function voiceLabel(settings) {
   if (!settings) return '';
   const engine = settings.engine;
-  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', localServer: 'Local server', system: 'System voice' }[engine] || engine;
+  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', openrouter: 'OpenRouter', kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', localServer: 'Local server', system: 'System voice' }[engine] || engine;
   const voice = {
     openai: settings.openai?.voice,
     gemini: settings.gemini?.voice,
+    openrouter: settings.openrouter?.voice,
     kokoro: KOKORO_VOICES[settings.kokoro?.voice]?.replace(/ \(.*\)$/, ''),
     supertonic: SUPERTONIC_VOICES[settings.supertonic?.voice],
     piper: settings.piper?.voice?.split('-').slice(1, -1).join(' ').replace(/_/g, ' '),

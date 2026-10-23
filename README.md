@@ -6,7 +6,7 @@ in your browser with no account and no server.
 
 ## Features
 
-- **Cloud voices**: OpenAI (including `gpt-4o-mini-tts` with style instructions), ElevenLabs and Google Gemini. Bring your own API key.
+- **Cloud voices**: OpenAI (including `gpt-4o-mini-tts` with style instructions), ElevenLabs, Google Gemini, and [OpenRouter](https://openrouter.ai), where one key gives you speech models from many providers. Bring your own API key.
 - **Voices that run in your browser** (offline after a one-time download):
   - **Kokoro-82M**, the default: about 90 MB.
   - **Supertonic 2** (Supertone): 10 voices in English, Spanish, French, Portuguese and Korean, about 260 MB.
@@ -41,7 +41,7 @@ The defaults are Alt/⌥+Shift+R (play/pause), Alt/⌥+Shift+←/→ (previous/n
 
 ## Privacy
 
-- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With Kokoro, Supertonic, Piper or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
+- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With OpenRouter, it goes to OpenRouter and the model's provider. With Kokoro, Supertonic, Piper or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
 - **API keys** are stored in `chrome.storage.local` on your computer. They're never synced and never sent anywhere except to the provider they belong to.
 - **Model downloads**: in-browser voices download their model files from Hugging Face on first use, then cache them in your browser.
 - **Reading positions**: Narro stores a short fingerprint of the last sentence you heard on each page, plus its position, for up to 200 pages. These stay on your computer and don't include the text itself.

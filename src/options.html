@@ -23,6 +23,7 @@
             <option value="openai">OpenAI</option>
             <option value="elevenlabs">ElevenLabs</option>
             <option value="gemini">Google Gemini</option>
+            <option value="openrouter">OpenRouter (many providers)</option>
           </optgroup>
           <optgroup label="Local">
             <option value="kokoro">Kokoro — runs in your browser</option>
@@ -54,6 +55,15 @@
           <div class="secret"><input id="gemini-key" type="password" data-key="gemini.apiKey" autocomplete="off" spellcheck="false"></div></div>
         <label class="field"><span>Model</span><select data-key="gemini.model" id="gemini-models"></select></label>
         <label class="field"><span>Voice</span><select data-key="gemini.voice" id="gemini-voices"></select></label>
+      </div>
+
+      <div class="engine" data-engine="openrouter">
+        <p class="note">One OpenRouter key gives you speech models from many providers, such as ElevenLabs, Google, MiniMax, Deepgram and Mistral. The list comes live from OpenRouter.</p>
+        <div class="field"><label for="openrouter-key">API key</label>
+          <div class="secret"><input id="openrouter-key" type="password" data-key="openrouter.apiKey" placeholder="sk-or-…" autocomplete="off" spellcheck="false"></div></div>
+        <label class="field"><span>Model</span><select data-key="openrouter.model" id="openrouter-models"></select></label>
+        <label class="field"><span>Voice</span><select data-key="openrouter.voice" id="openrouter-voices"></select></label>
+        <label class="field"><span>Style instructions <em>(some models)</em></span><textarea data-key="openrouter.instructions" rows="2" placeholder="e.g. Calm audiobook narration"></textarea></label>
       </div>
 
       <div class="engine" data-engine="kokoro">

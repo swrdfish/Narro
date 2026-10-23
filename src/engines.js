@@ -135,6 +135,26 @@ export async function synthesize(settings, text, { onStatus } = {}) {
       );
       return res.blob();
     }
+    case 'openrouter': {
+      const s = settings.openrouter;
+      requireKey(s.apiKey, 'OpenRouter');
+      // OpenAI-compatible, but defaults to raw PCM: always ask for MP3. `speed` isn't sent because
+      // some providers reject it; the player applies the speed.
+      const body = { model: s.model, input: text, voice: s.voice, response_format: 'mp3' };
+      if (s.instructions) body.instructions = s.instructions;
+      try {
+        const res = await checkedFetch('https://openrouter.ai/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}`, 'X-Title': 'Narro' },
+          body: JSON.stringify(body),
+        }, 'OpenRouter');
+        return res.blob();
+      } catch (error) {
+        // OpenRouter answers an unrecognized key with "Missing Authentication header".
+        if (/^OpenRouter 401\b/.test(error.message)) error.message = 'OpenRouter 401: the API key wasn\'t accepted. Check it in the extension settings (keys start with sk-or-).';
+        throw error;
+      }
+    }
     case 'gemini': {
       const s = settings.gemini;
       requireKey(s.apiKey, 'Gemini');

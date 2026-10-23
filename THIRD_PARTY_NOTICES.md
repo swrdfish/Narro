@@ -39,4 +39,4 @@ Their licences apply to your use of them.
 | [Supertonic 2](https://huggingface.co/onnx-community/Supertonic-TTS-2-ONNX) (Supertone) | OpenRAIL; review its use restrictions before commercial use |
 | [Piper voices](https://huggingface.co/rhasspy/piper-voices) | Varies by voice; see each voice's model card |
 
-Cloud voices (OpenAI, ElevenLabs, Google Gemini) are used under your own account and those providers' terms.
+Cloud voices (OpenAI, ElevenLabs, Google Gemini, OpenRouter and the providers it routes to) are used under your own account and those providers' terms.

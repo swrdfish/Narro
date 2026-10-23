@@ -98,6 +98,43 @@ function updateStyleField() {
   $('#openai-style').hidden = !/gpt-4o/.test(settings.openai.model);
 }
 
+// --- OpenRouter: speech models and their voices, listed live (public, no key needed) ---
+
+let openrouterModels = null; // id -> { name, voices }
+
+async function loadOpenRouterModels() {
+  if (openrouterModels) return openrouterModels;
+  const res = await fetch('https://openrouter.ai/api/v1/models?output_modalities=speech');
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}`);
+  const { data = [] } = await res.json();
+  // Models without named voices only work by cloning a reference recording, which doesn't fit here.
+  openrouterModels = Object.fromEntries(data
+    .filter((model) => Array.isArray(model.supported_voices) && model.supported_voices.length)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((model) => [model.id, { name: model.name, voices: model.supported_voices.map(String) }]));
+  return openrouterModels;
+}
+
+function fillOpenRouterVoices() {
+  const voices = openrouterModels?.[settings.openrouter.model]?.voices;
+  if (!voices) {
+    fillSelect($('#openrouter-voices'), { [settings.openrouter.voice]: settings.openrouter.voice }, settings.openrouter.voice);
+    return;
+  }
+  // Keep the current voice if the model has it; otherwise switch to the model's first voice.
+  if (!voices.includes(settings.openrouter.voice)) {
+    settings.openrouter.voice = voices[0];
+    scheduleSave();
+  }
+  fillSelect($('#openrouter-voices'), Object.fromEntries(voices.map((voice) => [voice, voice])), settings.openrouter.voice);
+}
+
+async function showOpenRouterModels() {
+  const models = await loadOpenRouterModels();
+  fillSelect($('#openrouter-models'), Object.fromEntries(Object.entries(models).map(([id, model]) => [id, model.name])), settings.openrouter.model);
+  fillOpenRouterVoices();
+}
+
 // Model lists per engine ({ id: label }), from models.json. A saved model missing from a list stays selectable.
 async function loadModels() {
   try {
@@ -141,6 +178,8 @@ async function loadDynamicVoices() {
         const ids = data.map((m) => m.id).filter(Boolean);
         if (ids.length) fillSelect($('#local-models'), Object.fromEntries(ids.map((id) => [id, id])), settings.localServer.model);
       }
+    } else if (settings.engine === 'openrouter') {
+      await showOpenRouterModels();
     } else if (settings.engine === 'system') {
       const voices = await chrome.tts.getVoices();
       fillSelect($('#system-voices'), { '': 'Default', ...Object.fromEntries(voices.map((v) => [v.voiceName, `${v.voiceName}${v.lang ? ` (${v.lang})` : ''}`])) }, settings.system.voiceName);
@@ -174,6 +213,9 @@ async function init() {
   fillSelect($('#openai-models'), models.openai || {}, settings.openai.model);
   fillSelect($('#elevenlabs-models'), models.elevenlabs || {}, settings.elevenlabs.model);
   fillSelect($('#gemini-models'), models.gemini || {}, settings.gemini.model);
+  // Until OpenRouter's list loads, show the saved choices.
+  fillSelect($('#openrouter-models'), { [settings.openrouter.model]: settings.openrouter.model }, settings.openrouter.model);
+  fillOpenRouterVoices();
   fillSelect($('#piper-voices'), models.piper || {}, settings.piper.voice);
   // The local server's own model list is loaded once it's reachable (see loadDynamicVoices).
   fillSelect($('#local-models'), { [settings.localServer.model]: settings.localServer.model }, settings.localServer.model);
@@ -199,6 +241,7 @@ async function init() {
         updateRangeFill(el);
       }
       if (key === 'openai.model') updateStyleField();
+      if (key === 'openrouter.model') fillOpenRouterVoices();
       scheduleSave();
     });
     // Refresh voice lists once a key or server URL is entered.

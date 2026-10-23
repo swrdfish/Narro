@@ -24,6 +24,13 @@ export const DEFAULT_SETTINGS = {
     model: 'gemini-2.5-flash-preview-tts',
     voice: 'Kore',
   },
+  openrouter: {
+    // One key for many providers' speech models; the popup lists them live from OpenRouter.
+    apiKey: '',
+    model: 'google/gemini-3.8-flash-tts',
+    voice: 'Kore',
+    instructions: '', // honored by some models (e.g. OpenAI, Gemini), ignored by others
+  },
   kokoro: {
     voice: 'af_heart',
     device: 'auto', // auto | webgpu | wasm
@@ -52,6 +59,7 @@ export const ENGINES = {
   openai: { label: 'OpenAI', kind: 'cloud' },
   elevenlabs: { label: 'ElevenLabs', kind: 'cloud' },
   gemini: { label: 'Google Gemini', kind: 'cloud' },
+  openrouter: { label: 'OpenRouter', kind: 'cloud' },
   kokoro: { label: 'Kokoro (in-browser)', kind: 'local' },
   supertonic: { label: 'Supertonic (in-browser)', kind: 'local' },
   piper: { label: 'Piper (in-browser)', kind: 'local' },
