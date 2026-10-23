@@ -95,3 +95,29 @@ test('non-error status text is not clickable and has no details', async () => {
     context.dom.window.close();
   }
 });
+
+test('download progress updates the status in place without fading (no flicker)', async () => {
+  const context = fixture();
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await wait(50);
+    const spoken = context.messages.find((m) => m.type === 'speak');
+    const status = (text) => context.message({ type: 'tts-event', event: 'status', seq: spoken.seq, status: text });
+    status('Downloading Kokoro model… 1%');
+    await wait(400); // the first message may fade in from the placeholder
+    const info = context.root().querySelector('.info');
+    let faded = false;
+    const watch = setInterval(() => { faded ||= info.classList.contains('fading'); }, 5);
+    for (let pct = 2; pct <= 30; pct++) {
+      status(`Downloading Kokoro model… ${pct}%`);
+      await wait(30);
+    }
+    await wait(300);
+    clearInterval(watch);
+    assert.equal(faded, false, 'never faded between progress updates');
+    assert.equal(info.querySelector('.text').textContent, 'Downloading Kokoro model… 30%');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});

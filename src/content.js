@@ -864,7 +864,11 @@ function createPlayer(h) {
     };
     if (!info.isError) closeDetails();
     clearTimeout(fadeTimer);
-    if (!box.querySelector('.text').textContent || info.isError) return apply(); // first paint and errors: no fade
+    const shown = box.querySelector('.text').textContent;
+    if (!shown || info.isError) return apply(); // first paint and errors: no fade
+    // A progress update ("…41%" → "…42%") changes in place; fading every step would flicker.
+    const shape = (value) => value.replace(/\d+/g, '#');
+    if (shape(shown) === shape(text) && !box.classList.contains('placeholder') === !classes.placeholder) return apply();
     box.classList.add('fading');
     fadeTimer = setTimeout(apply, 140);
   }

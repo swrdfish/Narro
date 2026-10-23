@@ -18,7 +18,9 @@ async function load(device, wasmPaths) {
       files.set(p.file, p);
       let loaded = 0, total = 0;
       for (const f of files.values()) { loaded += f.loaded; total += f.total; }
-      const pct = Math.round((loaded / total) * 100);
+      // The total grows as each file starts, so the raw percentage can drop; only ever show progress
+      // going up, and hold below 100% until loading has actually finished.
+      const pct = Math.min(99, Math.max(lastPct, Math.round((loaded / total) * 100)));
       if (pct !== lastPct) postMessage({ type: 'status', status: `Downloading Kokoro model… ${(lastPct = pct)}%` });
     },
   });
