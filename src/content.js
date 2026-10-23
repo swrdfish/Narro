@@ -253,10 +253,10 @@ function main() {
     ui.setInfo('Finished');
   }
 
-  function fail(message) {
+  function fail(message, detail) {
     stop();
     ui.show();
-    ui.setInfo(message, true);
+    ui.setInfo(message, true, detail);
   }
 
   function toggle() {
@@ -431,7 +431,7 @@ function main() {
         ui.setInfo(msg.status);
         break;
       case 'error':
-        fail(msg.message);
+        fail(msg.message, msg.detail);
         break;
     }
   });
@@ -491,15 +491,17 @@ function createPlayer(h) {
   root.innerHTML = `
     <style>
       :host { color-scheme: light dark; }
+      .bar, .details {
+        --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --hover: #f0f0f2; --accent: #2563eb; --border: rgba(0,0,0,.1); --error: #dc2626;
+      }
       .bar {
-        --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --hover: #f0f0f2; --accent: #2563eb; --border: rgba(0,0,0,.1);
         display: flex; align-items: center; gap: 4px; padding: 6px 8px;
         font: 13px/1.2 system-ui, -apple-system, sans-serif; color: var(--fg);
         background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
         box-shadow: 0 8px 30px rgba(0,0,0,.18);
       }
       @media (prefers-color-scheme: dark) {
-        .bar { --bg: #1f1f22; --fg: #f2f2f4; --muted: #a1a1a8; --hover: #2c2c30; --accent: #60a5fa; --border: rgba(255,255,255,.12); }
+        .bar, .details { --bg: #1f1f22; --fg: #f2f2f4; --muted: #a1a1a8; --hover: #2c2c30; --accent: #60a5fa; --border: rgba(255,255,255,.12); --error: #f87171; }
       }
       button {
         all: unset; cursor: pointer; display: grid; place-items: center;
@@ -522,7 +524,38 @@ function createPlayer(h) {
       .info.fading { opacity: 0; }
       .info.placeholder { opacity: .75; }
       .info.placeholder.fading { opacity: 0; }
-      .info.error { color: #dc2626; }
+      .info.error { color: var(--error); cursor: pointer; border-radius: 6px; }
+      .info.error:hover .text { text-decoration: underline; text-underline-offset: 2px; }
+      .info:focus-visible { outline: 2px solid var(--accent); }
+      /* Error details panel, above the bar (below it when the bar is near the top). */
+      .details {
+        position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+        width: min(380px, calc(100vw - 24px)); max-height: min(320px, 60vh); overflow: auto;
+        padding: 12px 14px 12px; box-sizing: border-box;
+        font: 13px/1.45 system-ui, -apple-system, sans-serif; color: var(--fg);
+        background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
+        box-shadow: 0 12px 32px rgba(0,0,0,.22);
+      }
+      .details.below { bottom: auto; top: calc(100% + 8px); }
+      .details[hidden] { display: none; }
+      .details-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+      .details-head strong { color: var(--error); font-size: 13px; }
+      .details-message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+      .details a { color: var(--accent); text-underline-offset: 2px; }
+      .details-raw { margin-top: 10px; }
+      .details-raw summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+      .details-raw pre {
+        margin: 6px 0 0; padding: 8px 10px; max-height: 140px; overflow: auto; border-radius: 8px;
+        background: var(--hover); font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
+      }
+      .details-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+      .details button.text-button {
+        width: auto; height: auto; display: inline-block; padding: 4px 12px; border-radius: 8px;
+        border: 1px solid var(--border); font-weight: 600; font-size: 12px;
+      }
+      .details button.icon { width: 26px; height: 26px; }
+      .details button.icon svg { width: 14px; height: 14px; }
       .grip { display: grid; place-items: center; width: 14px; height: 32px; margin-right: -2px; color: var(--muted); cursor: grab; }
       .grip svg { width: 14px; height: 14px; }
       .bar { touch-action: none; user-select: none; }
@@ -545,6 +578,15 @@ function createPlayer(h) {
       <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
       <button class="settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
       <button class="close" title="Stop and close"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1.4 0)"/></svg></button>
+    </div>
+    <div class="details" role="dialog" aria-label="Error details" hidden>
+      <div class="details-head">
+        <strong>Error</strong>
+        <button class="icon details-close" aria-label="Close error details" title="Close"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1.4 0)"/></svg></button>
+      </div>
+      <p class="details-message"></p>
+      <details class="details-raw" hidden><summary>Server response</summary><pre></pre></details>
+      <div class="details-actions"><button class="text-button details-copy">Copy</button></div>
     </div>`;
 
   const $ = (sel) => root.querySelector(sel);
@@ -647,7 +689,73 @@ function createPlayer(h) {
     button.title = name === 'pause' ? 'Pause' : 'Play';
   }
 
-  let info = { text: '', isError: false };
+  let info = { text: '', isError: false, detail: '' };
+
+  // --- Error details ---
+  // Text becomes nodes and only http(s) addresses become links: nothing from a server is parsed as HTML.
+  function linkify(target, text) {
+    target.replaceChildren();
+    const pattern = /https?:\/\/[^\s<>"'`]+/g;
+    let last = 0;
+    for (let match; (match = pattern.exec(text));) {
+      const url = match[0].replace(/[.,;:!?)\]]+$/, ''); // sentence punctuation isn't part of the URL
+      target.append(text.slice(last, match.index));
+      const link = document.createElement('a');
+      link.href = url;
+      link.textContent = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      target.append(link);
+      last = match.index + url.length;
+      pattern.lastIndex = last;
+    }
+    target.append(text.slice(last));
+  }
+
+  let detailsOpen = false;
+  function openDetails() {
+    if (!info.isError) return;
+    linkify($('.details-message'), info.text);
+    $('.details-raw').hidden = !info.detail;
+    $('.details-raw').open = false;
+    $('.details-raw pre').textContent = info.detail || '';
+    $('.details-copy').textContent = 'Copy';
+    $('.details').classList.toggle('below', host.getBoundingClientRect().top < 340);
+    $('.details').hidden = false;
+    detailsOpen = true;
+    $('.details-close').focus();
+  }
+  function closeDetails({ restoreFocus = false } = {}) {
+    if (!detailsOpen) return;
+    $('.details').hidden = true;
+    detailsOpen = false;
+    if (restoreFocus && info.isError) $('.info').focus();
+  }
+  $('.info').addEventListener('click', () => (detailsOpen ? closeDetails() : openDetails()));
+  $('.info').addEventListener('keydown', (e) => {
+    if (info.isError && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      openDetails();
+    }
+  });
+  $('.details-close').addEventListener('click', () => closeDetails({ restoreFocus: true }));
+  $('.details').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      closeDetails({ restoreFocus: true });
+    }
+  });
+  $('.details-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(info.detail ? `${info.text}\n\n${info.detail}` : info.text);
+      $('.details-copy').textContent = 'Copied';
+    } catch {
+      $('.details-copy').textContent = 'Copy failed';
+    }
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (detailsOpen && !e.composedPath().includes(host)) closeDetails();
+  }, true);
   let infoTimer = null;
   let fadeTimer = null;
   function placeholder() {
@@ -664,12 +772,23 @@ function createPlayer(h) {
     box.dataset.shown = text;
     const apply = () => {
       box.querySelector('.text').textContent = text;
-      box.title = text;
       for (const [name, on] of Object.entries(classes)) box.classList.toggle(name, on);
       box.classList.remove('fading');
+      if (info.isError) {
+        box.setAttribute('role', 'button');
+        box.setAttribute('aria-haspopup', 'dialog');
+        box.tabIndex = 0;
+        box.title = 'Show error details';
+      } else {
+        box.removeAttribute('role');
+        box.removeAttribute('aria-haspopup');
+        box.removeAttribute('tabindex');
+        box.title = text;
+      }
     };
+    if (!info.isError) closeDetails();
     clearTimeout(fadeTimer);
-    if (!box.querySelector('.text').textContent) return apply(); // first paint: no fade
+    if (!box.querySelector('.text').textContent || info.isError) return apply(); // first paint and errors: no fade
     box.classList.add('fading');
     fadeTimer = setTimeout(apply, 140);
   }
@@ -683,6 +802,7 @@ function createPlayer(h) {
       applyPosition();
     },
     hide() {
+      closeDetails();
       host.remove();
       ui.visible = false;
     },
@@ -711,8 +831,8 @@ function createPlayer(h) {
       if (s.settings) $('.settings').title = `Settings — voice: ${ENGINES[s.settings.engine]?.label}`;
       if (!info.text) paintInfo(); // the placeholder may have changed
     },
-    setInfo(text, isError = false) {
-      info = { text: text || '', isError };
+    setInfo(text, isError = false, detail = '') {
+      info = { text: text || '', isError, detail: detail || '' };
       // Coalesce bursts of status updates; errors show right away.
       if (isError) {
         clearTimeout(infoTimer);

@@ -71,7 +71,7 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
     await audio.play();
     emit(tabId, seq, 'started');
   } catch (e) {
-    if (current === token) emit(tabId, seq, 'error', { message: e.message });
+    if (current === token) emit(tabId, seq, 'error', { message: e.message, detail: e.detail });
   }
 }
 

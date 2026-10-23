@@ -8,12 +8,23 @@ async function checkedFetch(url, init, label) {
     throw new Error(`${label}: network error (${e.message}). Is the server reachable?`);
   }
   if (!res.ok) {
-    let detail = '';
+    // The player shows the message; the raw response is available in its error details.
+    let message = '';
+    let raw = '';
     try {
       const body = await res.text();
-      detail = (JSON.parse(body).error?.message ?? JSON.parse(body).detail?.message ?? body).toString().slice(0, 200);
+      raw = body;
+      try {
+        const json = JSON.parse(body);
+        message = String(json.error?.message ?? json.detail?.message ?? json.message ?? '');
+        raw = JSON.stringify(json, null, 2);
+      } catch {
+        message = body;
+      }
     } catch {}
-    throw new Error(`${label} ${res.status}: ${detail || res.statusText}`);
+    const error = new Error(`${label} ${res.status}: ${(message || res.statusText).slice(0, 1000)}`);
+    if (raw && raw.trim() !== message.trim()) error.detail = raw.slice(0, 4000);
+    throw error;
   }
   return res;
 }
