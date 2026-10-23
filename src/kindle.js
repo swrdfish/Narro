@@ -274,7 +274,11 @@ export function createKindleReader(onChange) {
         sent = true;
         const result = await chrome.runtime.sendMessage({ type: 'kindle-extract', requestId, images, viewport: { width: innerWidth, height: innerHeight } });
         signal.throwIfAborted();
-        if (initial !== signature(findKindleSurfaces())) throw new Error('The Kindle page changed while reading. Press Play to read the new page.');
+        if (initial !== signature(findKindleSurfaces())) {
+          const error = new Error('The Kindle page changed while reading. Press Play to read the new page.');
+          error.pageChanged = true; // the reader moves on to the new page instead of reporting this
+          throw error;
+        }
         if (result?.error) throw new Error(result.error);
         if (!Array.isArray(result?.pages) || result.pages.length !== surfaces.length) throw new Error('Kindle extraction returned no pages.');
         guards.replaceChildren(...images.filter((image) => !image.dataUrl).map(({ rect }) => {

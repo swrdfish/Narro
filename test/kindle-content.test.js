@@ -95,21 +95,71 @@ test('closing the player during OCR prevents late results from starting speech',
   } finally { context.dom.window.close(); }
 });
 
-test('turning the Kindle page invalidates highlights and stops stale speech', async () => {
+test('turning the Kindle page while reading stops the old page and reads the new one', async () => {
   const context = fixture();
   try {
     context.message({ type: 'control', action: 'toggle' });
     await flush();
-    context.complete();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.'));
     await flush();
-    const spoken = context.messages.find((message) => message.type === 'speak');
-    context.page.src = 'blob:https://read.amazon.in/second-page';
+    const spoken = speaks(context).at(-1);
+    context.message({ type: 'tts-event', event: 'started', seq: spoken.seq });
+    context.page.src = 'blob:https://read.amazon.in/second-page'; // the user turns the page
     await new Promise((resolve) => setTimeout(resolve, 550));
-    assert.ok(context.messages.some((message) => message.type === 'stop'));
-    assert.equal(context.window.document.getElementById('ai-reader-kindle-overlay'), null);
-    context.message({ type: 'tts-event', event: 'ended', seq: spoken.seq });
+    assert.ok(context.messages.some((message) => message.type === 'stop'), 'old page audio stopped');
+    context.message({ type: 'tts-event', event: 'ended', seq: spoken.seq }); // late event from the old page
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(extracts(context).length, 2, 'new page recognized automatically');
+    context.complete(line('Morning', 'came.', 'Rain', 'fell.'));
     await flush();
-    assert.equal(context.messages.filter((message) => message.type === 'speak').length, 1);
+    assert.equal(speaks(context).at(-1).text, 'Morning came.');
+    assert.equal(speaks(context).filter((message) => message.text === 'Gulls stayed.').length, 0, 'old page not continued');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('turning the page while paused does not start reading', async () => {
+  const context = fixture();
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.'));
+    await flush();
+    context.message({ type: 'tts-event', event: 'started', seq: speaks(context).at(-1).seq });
+    context.message({ type: 'control', action: 'toggle' }); // pause
+    context.page.src = 'blob:https://read.amazon.in/second-page';
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    assert.equal(extracts(context).length, 1);
+    const player = context.window.document.getElementById('ai-reader-host');
+    assert.equal(player.shadowRoot.querySelector('.info').textContent, 'Kindle page changed — press Play to read it.');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('if the page changes again while it is being recognized, the latest page is read', async () => {
+  const context = fixture();
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.'));
+    await flush();
+    context.message({ type: 'tts-event', event: 'started', seq: speaks(context).at(-1).seq });
+    context.page.src = 'blob:https://read.amazon.in/second-page';
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    assert.equal(extracts(context).length, 2);
+    context.page.src = 'blob:https://read.amazon.in/third-page'; // flipped again during recognition
+    context.complete(line('Old', 'page.'));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.equal(extracts(context).length, 3, 'recognized the latest page instead of reporting an error');
+    context.complete(line('Latest', 'page.'));
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'Latest page.');
+    const info = context.window.document.getElementById('ai-reader-host').shadowRoot.querySelector('.info');
+    assert.equal(info.classList.contains('error'), false);
   } finally {
     context.message({ type: 'control', action: 'stop' });
     context.dom.window.close();

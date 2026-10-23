@@ -28,13 +28,29 @@ function main() {
     sourceInfo: '',
   };
   let preparation;
+  // The user turned the page (or resized the window) themselves. The reader's own page turn is
+  // handled by nextKindlePage(), which clears this monitor before pressing Next.
   const kindle = isKindleUrl(location.href) ? createKindleReader(() => {
-    // An external page change can race Kindle's rendering. The reader's own page turn is
-    // handled by nextKindlePage(), which clears this monitor before pressing Next.
     cancelPick();
+    const reading = state.status === 'playing' || state.status === 'loading' || state.preparing || newPageTimer !== null;
     stop();
-    ui.setInfo('Kindle page changed — press Play to read it.');
+    if (reading) readNewPage();
+    else ui.setInfo('Kindle page changed — press Play to read it.'); // paused: stay quiet
   }) : null;
+
+  // Starts reading the page now showing, after a short pause so rapid page flips settle on the
+  // last one. Resumes at the remembered sentence if it's the same page (e.g. after a resize).
+  let newPageTimer = null;
+  let newPageRetries = 0;
+  function readNewPage() {
+    clearTimeout(newPageTimer);
+    ui.show();
+    ui.setInfo('Reading the new page…');
+    newPageTimer = setTimeout(() => {
+      newPageTimer = null;
+      start();
+    }, 400);
+  }
 
   // --- Highlighting -----------------------------------------------------------------------------
 
@@ -228,7 +244,7 @@ function main() {
       send({ type: 'prefetch', texts: chunksFrom(sentences, 0, 2) });
       return { sentences };
     } catch (error) {
-      return signal.aborted ? null : { error: error.message };
+      return signal.aborted ? null : { error: error.message, pageChanged: !!error.pageChanged };
     }
   }
 
@@ -270,6 +286,7 @@ function main() {
       ui.setInfo('Reached the end of the book.');
       return;
     }
+    if (result.pageChanged) return readNewPage(); // the user turned the page during our own turn
     if (result.error) return fail(result.error);
     state.sentences = result.sentences;
     play(0, { first: false }); // its first chunk was prefetched while the last page finished
@@ -293,11 +310,21 @@ function main() {
           kindleStatus, (hidden) => ui.captureHidden(hidden));
       } else build();
       controller.signal.throwIfAborted();
-      if (state.sentences.length) return true;
+      if (state.sentences.length) {
+        newPageRetries = 0;
+        return true;
+      }
       fail(kindle ? 'No readable English text found. Try a larger font and a text page rather than the cover.' : 'No readable text found on this page.');
       return false;
     } catch (error) {
-      if (!controller.signal.aborted) fail(error.message);
+      if (controller.signal.aborted) return false;
+      // The page changed again while it was being recognized: read the latest one instead.
+      if (error.pageChanged && newPageRetries++ < 3) {
+        kindle.clear(); // stop the old page's change monitor; the new read starts its own
+        readNewPage();
+        return false;
+      }
+      fail(error.message);
       return false;
     } finally {
       if (preparation === controller) {
@@ -326,6 +353,8 @@ function main() {
   }
 
   function stop() {
+    clearTimeout(newPageTimer);
+    newPageTimer = null;
     preparation?.abort();
     upcoming?.controller.abort();
     upcoming = null;
