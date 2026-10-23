@@ -11,8 +11,8 @@ for (const [from, to] of [
   ['icons/narro.svg', 'narro.svg'],
   ['icons/icon-32.png', 'icon-32.png'],
   ['icons/icon-128.png', 'icon-128.png'],
-  ['docs/player.png', 'player.png'],
   ['docs/popup.png', 'popup.png'],
+  ['docs/social-preview.png', 'social-preview.png'],
 ]) {
   cpSync(from, `${out}/${to}`);
 }
