@@ -7,6 +7,34 @@ import { enhanceSelects } from './select.js';
 const $ = (sel) => document.querySelector(sel);
 let settings;
 
+// Network access is optional: Chrome asks only when someone selects an engine that needs it.
+// This keeps a fresh install's permission prompt focused on reading the current tab. In-browser
+// voices need no prompt: Hugging Face allows the model downloads from any origin.
+const ENGINE_ORIGINS = {
+  openai: ['https://api.openai.com/*'],
+  elevenlabs: ['https://api.elevenlabs.io/*'],
+  gemini: ['https://generativelanguage.googleapis.com/*'],
+  openrouter: ['https://openrouter.ai/*'],
+  localServer: ['http://localhost/*', 'http://127.0.0.1/*'],
+};
+const ENGINE_SERVICES = {
+  openai: 'OpenAI',
+  elevenlabs: 'ElevenLabs',
+  gemini: 'Google Gemini',
+  openrouter: 'OpenRouter',
+  localServer: 'your local server',
+};
+const CLOUD_ENGINES = new Set(['openai', 'elevenlabs', 'gemini', 'openrouter']);
+
+async function ensureEngineAccess(engine) {
+  const origins = ENGINE_ORIGINS[engine];
+  if (!origins) return true;
+  if (await chrome.permissions.contains({ origins })) return true;
+  const granted = await chrome.permissions.request({ origins });
+  if (!granted) setStatus(`Narro needs access to ${ENGINE_SERVICES[engine]} to use this voice.`, true);
+  return granted;
+}
+
 const getPath = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
 function setPath(obj, path, value) {
   const keys = path.split('.');
@@ -190,6 +218,7 @@ function setStatus(text, isError = false) {
 
 function showEngine() {
   for (const el of document.querySelectorAll('.engine')) el.classList.toggle('active', el.dataset.engine === settings.engine);
+  $('#cloud-disclosure').hidden = !CLOUD_ENGINES.has(settings.engine);
   loadDynamicVoices();
 }
 
@@ -260,8 +289,14 @@ async function init() {
   addRevealButtons();
 
   $('#engine').value = settings.engine;
-  $('#engine').onchange = () => {
-    settings.engine = $('#engine').value;
+  $('#engine').onchange = async () => {
+    const previous = settings.engine;
+    const next = $('#engine').value;
+    if (!await ensureEngineAccess(next)) {
+      $('#engine').value = previous;
+      return;
+    }
+    settings.engine = next;
     showEngine();
     scheduleSave();
   };
@@ -300,6 +335,7 @@ async function init() {
       setStatus("Chrome doesn't allow reading this page.", true);
       return;
     }
+    if (!await ensureEngineAccess(settings.engine)) return;
     clearTimeout(saveTimer);
     await saveSettings(settings);
     const res = await chrome.runtime.sendMessage({ type: 'start-reading', tabId: tab.id, mode });

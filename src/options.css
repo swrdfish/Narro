@@ -179,6 +179,12 @@ button.secondary:hover { background: var(--field); }
 button.primary:focus-visible, button.secondary:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
 .note { margin: 0; color: var(--muted); }
+.privacy-notice {
+  margin: 0; padding: 9px 10px; color: var(--muted); font-size: 12px; line-height: 1.4;
+  background: var(--field); border: 1px solid var(--border); border-radius: 8px;
+}
+.privacy-notice[hidden] { display: none; }
+.privacy-notice a { color: var(--fg); text-underline-offset: 2px; }
 code { font-size: 12px; }
 
 /* Now reading: controls for the tab that's reading */

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Narro privacy policy</title>
+  <meta name="description" content="Privacy policy for the Narro Chrome extension.">
+  <meta name="theme-color" content="#1a1917">
+  <link rel="icon" href="narro.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="brand" href="./" aria-label="Narro home"><img src="narro.svg" width="28" height="28" alt=""><span>Narro</span></a>
+    <nav aria-label="Page links"><a href="./">Home</a><a href="https://github.com/swrdfish/Narro">Source code</a></nav>
+  </header>
+
+  <main id="main">
+    <section class="section policy">
+      <h1>Privacy policy</h1>
+      <p class="section-lede">Effective October 24, 2026. Narro is an open-source Chrome extension that reads the current webpage aloud.</p>
+
+      <h2>What Narro handles</h2>
+      <p>Narro reads the text on the page you choose to read, along with the page title and URL needed to operate the player and remember your place. It stores your voice settings, API keys, and up to 200 reading positions in Chrome&rsquo;s local extension storage on your computer. API keys are not synced.</p>
+
+      <h2>When text leaves your computer</h2>
+      <p>By default, Narro uses an in-browser voice. In-browser voices, system voices, and Kindle OCR process text on your computer; Narro does not operate its own servers or collect analytics.</p>
+      <p>If you explicitly select a cloud voice and press Read, Narro sends the text selected for speech to the provider you chose, using the API key you supplied:</p>
+      <ul>
+        <li>OpenAI, ElevenLabs, Google Gemini, or OpenRouter; with OpenRouter, the selected model&rsquo;s provider also receives the text.</li>
+        <li>A local OpenAI-compatible server, if you configure one.</li>
+      </ul>
+      <p>Your API key is sent only to the service it belongs to. Those providers process data under their own terms and privacy policies. Do not use a cloud voice for text you do not want to share with that provider.</p>
+
+      <h2>Model downloads</h2>
+      <p>On-device voices download their model files from Hugging Face on first use and cache them in your browser. These downloads do not include the text you read.</p>
+
+      <h2>Sharing, retention, and security</h2>
+      <p>Narro does not sell, rent, or use your data for advertising. It does not transmit data except as described above to provide the voice you selected. Reading positions remain on your device until removed by Chrome&rsquo;s extension storage or by uninstalling Narro.</p>
+      <p>The use of information received from Google APIs will adhere to the <a href="https://developer.chrome.com/docs/webstore/program-policies/limited-use/">Chrome Web Store User Data Policy, including the Limited Use requirements</a>.</p>
+
+      <h2>Contact and changes</h2>
+      <p>For questions or privacy requests, open an issue at <a href="https://github.com/swrdfish/Narro/issues">github.com/swrdfish/Narro/issues</a>. If this policy changes, the updated version will be published at this URL with a new effective date.</p>
+    </section>
+  </main>
+
+  <footer class="bottom"><a class="brand small" href="./"><img src="narro.svg" width="20" height="20" alt=""><span>Narro</span></a></footer>
+</body>
+</html>
