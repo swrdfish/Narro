@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS = {
   openai: {
     apiKey: '',
     model: 'gpt-4o-mini-tts',
-    voice: 'coral',
+    voice: 'nova',
     instructions: 'Read in a natural, engaging audiobook narration style.',
   },
   elevenlabs: {
