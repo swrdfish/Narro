@@ -1,47 +1,124 @@
 // Text-to-speech engines. Each synthesize() returns a playable audio Blob.
 
-async function checkedFetch(url, init, label) {
-  let res;
-  try {
-    res = await fetch(url, init);
-  } catch (e) {
-    throw new Error(`${label}: network error (${e.message}). Is the server reachable?`);
-  }
-  if (!res.ok) {
-    // The player shows the message; the raw response is available in its error details.
-    let message = '';
-    let raw = '';
+// Cloud requests occasionally stall: no response, or audio that stops arriving partway. Without a
+// limit the sentence would wait forever (and stay cached as a pending request), so give up after
+// these times and retry. A slow response that's still sending isn't cut off.
+const CLOUD_TIMEOUTS = { response: 40_000, idle: 20_000 };
+const LOCAL_SERVER_TIMEOUTS = { response: 120_000, idle: 60_000 }; // CPU speech servers can be slow
+const RETRY_DELAYS = [1000, 3000];
+const MAX_RETRY_AFTER = 10_000;
+
+/**
+ * POSTs to a speech API and reads the whole response as a Blob or JSON, with time limits and up to
+ * two retries for network errors, time-outs, 408, 429 (except quota errors) and 5xx.
+ */
+async function request(url, init, label, { as = 'blob', onStatus, timeouts = CLOUD_TIMEOUTS } = {}) {
+  for (let attempt = 0; ; attempt++) {
     try {
-      const body = await res.text();
-      raw = body;
-      try {
-        const json = JSON.parse(body);
-        message = String(json.error?.message ?? json.detail?.message ?? json.message ?? '');
-        raw = JSON.stringify(json, null, 2);
-      } catch {
-        message = body;
-      }
-    } catch {}
-    const error = new Error(`${label} ${res.status}: ${(message || res.statusText).slice(0, 1000)}`);
-    if (raw && raw.trim() !== message.trim()) error.detail = raw.slice(0, 4000);
-    throw error;
+      return await requestOnce(url, init, label, as, timeouts);
+    } catch (error) {
+      if (!error.retryable || attempt >= RETRY_DELAYS.length) throw error;
+      onStatus?.(`${label} ${error.timedOut ? "didn't respond" : 'had a problem'}, retrying…`);
+      await new Promise((resolve) => setTimeout(resolve, error.retryAfter ?? RETRY_DELAYS[attempt]));
+    }
   }
-  return res;
+}
+
+async function requestOnce(url, init, label, as, timeouts) {
+  const controller = new AbortController();
+  let phase = 'response'; // waiting for the response to start, then 'idle' between body chunks
+  let timedOut = false;
+  let timer;
+  const startTimer = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeouts[phase]);
+  };
+  const timeoutError = () => Object.assign(
+    new Error(`${label}: no response for ${Math.round(timeouts[phase] / 1000)} seconds. Press Play to try again.`),
+    { retryable: true, timedOut: true },
+  );
+  startTimer();
+
+  try {
+    let res;
+    try {
+      res = await fetch(url, { ...init, signal: controller.signal });
+    } catch (e) {
+      if (timedOut) throw timeoutError();
+      throw Object.assign(new Error(`${label}: network error (${e.message}). Is the server reachable?`), { retryable: true });
+    }
+
+    // Read the body in chunks, giving up if it stops arriving.
+    const readBody = async () => {
+      phase = 'idle';
+      startTimer();
+      const chunks = [];
+      try {
+        if (!res.body) return new Blob([await res.arrayBuffer()]);
+        const reader = res.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          startTimer();
+        }
+      } catch (e) {
+        if (timedOut) throw timeoutError();
+        throw Object.assign(new Error(`${label}: the connection dropped (${e.message}).`), { retryable: true });
+      }
+      return new Blob(chunks, { type: res.headers.get('content-type') || '' });
+    };
+
+    if (!res.ok) {
+      // The player shows the message; the raw response is available in its error details.
+      let message = '';
+      let raw = '';
+      try {
+        const body = await (await readBody()).text();
+        raw = body;
+        try {
+          const json = JSON.parse(body);
+          message = String(json.error?.message ?? json.detail?.message ?? json.message ?? '');
+          raw = JSON.stringify(json, null, 2);
+        } catch {
+          message = body;
+        }
+      } catch {}
+      const error = new Error(`${label} ${res.status}: ${(message || res.statusText).slice(0, 1000)}`);
+      if (raw && raw.trim() !== message.trim()) error.detail = raw.slice(0, 4000);
+      error.status = res.status;
+      error.retryable = [408, 429, 500, 502, 503, 504].includes(res.status) && !/quota/i.test(message);
+      const retryAfter = Number(res.headers.get('retry-after'));
+      if (retryAfter > 0) error.retryAfter = Math.min(retryAfter * 1000, MAX_RETRY_AFTER);
+      throw error;
+    }
+
+    const blob = await readBody();
+    if (as === 'json') {
+      try {
+        return JSON.parse(await blob.text());
+      } catch {
+        throw new Error(`${label}: the response wasn't valid JSON.`);
+      }
+    }
+    return blob;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function requireKey(key, label) {
   if (!key) throw new Error(`${label}: add an API key in the extension settings.`);
 }
 
-async function openaiSpeech({ baseUrl, apiKey, model, voice, instructions }, text, label) {
+async function openaiSpeech({ baseUrl, apiKey, model, voice, instructions }, text, label, options) {
   const body = { model, voice, input: text, response_format: 'mp3' };
   if (instructions && /gpt-4o/.test(model)) body.instructions = instructions;
   const headers = { 'Content-Type': 'application/json' };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  const res = await checkedFetch(`${baseUrl.replace(/\/+$/, '')}/audio/speech`, {
+  return request(`${baseUrl.replace(/\/+$/, '')}/audio/speech`, {
     method: 'POST', headers, body: JSON.stringify(body),
-  }, label);
-  return res.blob();
+  }, label, options);
 }
 
 /** Wraps mono 16-bit PCM or Float32 samples in a WAV container. */
@@ -116,15 +193,15 @@ export async function synthesize(settings, text, { onStatus } = {}) {
     case 'openai': {
       const s = settings.openai;
       requireKey(s.apiKey, 'OpenAI');
-      return openaiSpeech({ ...s, baseUrl: 'https://api.openai.com/v1' }, text, 'OpenAI');
+      return openaiSpeech({ ...s, baseUrl: 'https://api.openai.com/v1' }, text, 'OpenAI', { onStatus });
     }
     case 'localServer': {
-      return openaiSpeech({ ...settings.localServer, instructions: '' }, text, 'Local server');
+      return openaiSpeech({ ...settings.localServer, instructions: '' }, text, 'Local server', { onStatus, timeouts: LOCAL_SERVER_TIMEOUTS });
     }
     case 'elevenlabs': {
       const s = settings.elevenlabs;
       requireKey(s.apiKey, 'ElevenLabs');
-      const res = await checkedFetch(
+      return request(
         `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(s.voiceId)}?output_format=mp3_44100_128`,
         {
           method: 'POST',
@@ -132,8 +209,8 @@ export async function synthesize(settings, text, { onStatus } = {}) {
           body: JSON.stringify({ text, model_id: s.model }),
         },
         'ElevenLabs',
+        { onStatus },
       );
-      return res.blob();
     }
     case 'openrouter': {
       const s = settings.openrouter;
@@ -143,12 +220,11 @@ export async function synthesize(settings, text, { onStatus } = {}) {
       const body = { model: s.model, input: text, voice: s.voice, response_format: 'mp3' };
       if (s.instructions) body.instructions = s.instructions;
       try {
-        const res = await checkedFetch('https://openrouter.ai/api/v1/audio/speech', {
+        return await request('https://openrouter.ai/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}`, 'X-Title': 'Narro' },
           body: JSON.stringify(body),
-        }, 'OpenRouter');
-        return res.blob();
+        }, 'OpenRouter', { onStatus });
       } catch (error) {
         // OpenRouter answers an unrecognized key with "Missing Authentication header".
         if (/^OpenRouter 401\b/.test(error.message)) error.message = 'OpenRouter 401: the API key wasn\'t accepted. Check it in the extension settings (keys start with sk-or-).';
@@ -158,7 +234,7 @@ export async function synthesize(settings, text, { onStatus } = {}) {
     case 'gemini': {
       const s = settings.gemini;
       requireKey(s.apiKey, 'Gemini');
-      const res = await checkedFetch(
+      const json = await request(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.model)}:generateContent`,
         {
           method: 'POST',
@@ -172,8 +248,8 @@ export async function synthesize(settings, text, { onStatus } = {}) {
           }),
         },
         'Gemini',
+        { as: 'json', onStatus },
       );
-      const json = await res.json();
       const part = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
       if (!part) throw new Error('Gemini returned no audio.');
       const bytes = Uint8Array.from(atob(part.inlineData.data), (c) => c.charCodeAt(0));

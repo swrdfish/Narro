@@ -52,3 +52,103 @@ test('OpenRouter: a missing key and API errors produce readable messages', async
     return true;
   });
 });
+
+// --- Time limits and retries for cloud requests ---------------------------------------------------
+
+const openai = { engine: 'openai', openai: { apiKey: 'sk-test', model: 'tts-1', voice: 'nova', instructions: '' } };
+const mp3 = () => new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+
+// Never answers, like a stalled connection; rejects when the request is aborted, as fetch does.
+const stall = (_url, init) => new Promise((_resolve, reject) => {
+  init.signal.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+});
+
+// Starts sending audio, then stops partway.
+const stallMidBody = (_url, init) => new Response(new ReadableStream({
+  start(controller) {
+    controller.enqueue(new Uint8Array([1]));
+    init.signal.addEventListener('abort', () => controller.error(new DOMException('The operation was aborted.', 'AbortError')));
+  },
+}), { status: 200 });
+
+// Runs `promise` to completion with mocked timers, moving the clock forward a second at a time.
+async function withClock(t, start) {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let settled = false;
+  const promise = start().finally(() => { settled = true; });
+  promise.catch(() => {});
+  try {
+    for (let i = 0; i < 1000 && !settled; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+      t.mock.timers.tick(1000);
+    }
+    return await promise;
+  } finally {
+    t.mock.timers.reset();
+  }
+}
+
+test('Cloud requests: a request that never responds is retried, then fails instead of waiting forever', async (t) => {
+  const calls = fakeFetch(stall);
+  const statuses = [];
+  await assert.rejects(
+    withClock(t, () => synthesize(openai, 'Hello.', { onStatus: (s) => statuses.push(s) })),
+    /OpenAI: no response for 40 seconds/,
+  );
+  assert.equal(calls.length, 3, 'one try plus two retries');
+  assert.deepEqual(statuses, ["OpenAI didn't respond, retrying…", "OpenAI didn't respond, retrying…"]);
+});
+
+test('Cloud requests: audio that stops arriving is retried, and the retry succeeds', async (t) => {
+  let n = 0;
+  const calls = fakeFetch((url, init) => (n++ === 0 ? stallMidBody(url, init) : mp3()));
+  const blob = await withClock(t, () => synthesize(openai, 'Hello.'));
+  assert.equal(blob.size, 3);
+  assert.equal(calls.length, 2);
+});
+
+test('Cloud requests: 5xx and rate limits are retried, honouring Retry-After', async (t) => {
+  let n = 0;
+  const calls = fakeFetch(() => (n++ === 0
+    ? new Response(JSON.stringify({ error: { message: 'Rate limit reached' } }), { status: 429, headers: { 'retry-after': '2' } })
+    : mp3()));
+  const blob = await withClock(t, () => synthesize(openai, 'Hello.'));
+  assert.equal(blob.size, 3);
+  assert.equal(calls.length, 2);
+
+  n = 0;
+  fakeFetch(() => (n++ === 0 ? new Response('Bad gateway', { status: 502 }) : mp3()));
+  assert.equal((await withClock(t, () => synthesize(openai, 'Hello.'))).size, 3);
+});
+
+test("Cloud requests: errors that a retry can't fix fail at once", async (t) => {
+  let calls = fakeFetch(() => new Response(JSON.stringify({ error: { message: 'You exceeded your current quota.' } }), { status: 429 }));
+  await assert.rejects(withClock(t, () => synthesize(openai, 'Hello.')), /OpenAI 429: You exceeded your current quota/);
+  assert.equal(calls.length, 1);
+
+  calls = fakeFetch(() => new Response(JSON.stringify({ error: { message: 'Incorrect API key provided' } }), { status: 401 }));
+  await assert.rejects(withClock(t, () => synthesize(openai, 'Hello.')), /OpenAI 401: Incorrect API key/);
+  assert.equal(calls.length, 1);
+});
+
+test('Cloud requests: a slow response that keeps sending is not cut off', async (t) => {
+  // Five chunks, 15 seconds apart: 75 seconds in all, but never idle for 20.
+  fakeFetch(() => new Response(new ReadableStream({
+    async pull(controller) {
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      controller.enqueue(new Uint8Array([1]));
+      if (++this.sent === 5) controller.close();
+    },
+    sent: 0,
+  }), { status: 200 }));
+  const blob = await withClock(t, () => synthesize(openai, 'Hello.'));
+  assert.equal(blob.size, 5);
+});
+
+test('Gemini: the JSON response is read through the same time limits', async (t) => {
+  const pcm = btoa(String.fromCharCode(0, 0, 1, 0));
+  fakeFetch(() => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: pcm } }] } }] }), { status: 200 }));
+  const blob = await withClock(t, () => synthesize({ engine: 'gemini', gemini: { apiKey: 'k', model: 'm', voice: 'Kore' } }, 'Hello.'));
+  assert.equal(blob.type, 'audio/wav');
+  assert.equal(blob.size, 44 + 4);
+});
