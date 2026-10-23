@@ -370,7 +370,8 @@ function createPlayer(h) {
       button:focus-visible { outline: 2px solid var(--accent); }
       button.play { width: 38px; height: 38px; background: var(--accent); color: #fff; }
       button.play:hover { filter: brightness(1.1); background: var(--accent); }
-      button.small { width: 24px; height: 24px; font-size: 15px; }
+      button.small { width: 24px; height: 24px; }
+      button.small svg { width: 14px; height: 14px; }
       button.pick.active { background: var(--accent); color: #fff; }
       svg { width: 18px; height: 18px; fill: currentColor; }
       .rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
@@ -388,9 +389,9 @@ function createPlayer(h) {
       <button class="next" title="Next sentence"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
       <span class="pos"></span>
       <span class="sep"></span>
-      <button class="small slower" title="Slower">−</button>
+      <button class="small slower" title="Slower"><svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button>
       <span class="rate"></span>
-      <button class="small faster" title="Faster">+</button>
+      <button class="small faster" title="Faster"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       <span class="sep"></span>
       <span class="info"></span>
       <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
