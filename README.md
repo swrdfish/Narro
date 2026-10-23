@@ -1,29 +1,58 @@
-<p align="center">
-  <img src="icons/narro.svg" width="96" height="96" alt="Narro logo">
-</p>
+<div align="center">
+
+<img src="icons/narro.svg" width="88" height="88" alt="">
 
 # Narro
 
-Narro is a Chrome extension that reads web pages aloud with modern AI voices and highlights each
-sentence as it's spoken. You can use cloud voices with your own API key, or voices that run entirely
-in your browser with no account and no server.
+**Read any web page aloud with natural AI voices, in the cloud or entirely in your browser.**
+
+[Install](#install-from-source) · [Features](#features) · [Privacy](#privacy) · [Report an issue](https://github.com/swrdfish/Narro/issues)
+
+[![Tests](https://github.com/swrdfish/Narro/actions/workflows/test.yml/badge.svg)](https://github.com/swrdfish/Narro/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-4fb56e.svg)](LICENSE)
+
+</div>
+
+Narro is a Chrome extension that reads the page you're on and highlights each sentence as it's
+spoken. Use a cloud voice with your own API key, or a voice that runs entirely in your browser,
+with no account and no server.
+
+<table>
+  <tr>
+    <td width="68%"><img src="docs/player.png" alt="Narro reading an article: the current sentence is highlighted and a floating player sits at the bottom of the page"></td>
+    <td width="32%"><img src="docs/popup.png" alt="Narro's popup: what's being read, with pause and stop buttons, then the voice engine and reading settings"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Sentence highlighting and the floating player</sub></td>
+    <td align="center"><sub>The popup: controls and settings</sub></td>
+  </tr>
+</table>
 
 ## Features
 
-- **Cloud voices**: OpenAI (including `gpt-4o-mini-tts` with style instructions), ElevenLabs, Google Gemini, and [OpenRouter](https://openrouter.ai), where one key gives you speech models from many providers. Bring your own API key.
-- **Voices that run in your browser** (offline after a one-time download):
-  - **Kokoro-82M**, the default: about 90 MB.
-  - **Supertonic 2** (Supertone): 10 voices in English, Spanish, French, Portuguese and Korean, about 260 MB.
-  - **Piper**: popular voices from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, about 60 MB per voice.
-- **Other local options**: any OpenAI-compatible `/v1/audio/speech` server, such as [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) or LocalAI. You can also use your system's built-in voices.
-- **Sentence highlighting** with the CSS Custom Highlight API. The page's content isn't modified, and the page scrolls to follow along.
-- **Natural speech**: consecutive sentences are sent as one request (up to 4 sentences or ~400 characters), so the voice keeps its intonation. The first request after you press Play is a single sentence, so speech starts quickly.
-- **Navigation**: play/pause, previous/next sentence, and speed from 0.5× to 3× with pitch preserved.
-- **Choose where to start**: use **Start from…**, the crosshair in the player, Alt/⌥+click on a sentence, or select text and right-click → *Read aloud from here*.
-- **Resumes where you left off**: Narro remembers the sentence you stopped at on each page.
-- **Skips cut-off sentences** at the start or end of a page, for example in paginated books. You can turn this off.
-- **Movable player**: drag it anywhere. Its position is remembered. Double-click the grip to reset it.
-- **Readable errors**: click an error in the player to see the full message and the server's response, with clickable links.
+### Voices
+
+| | Engine | Notes |
+|---|---|---|
+| **Cloud** | OpenAI | `gpt-4o-mini-tts` with style instructions, `tts-1`, `tts-1-hd` |
+| | ElevenLabs | Your own voices, listed with your key |
+| | Google Gemini | Gemini TTS voices |
+| | [OpenRouter](https://openrouter.ai) | One key for speech models from many providers |
+| **In your browser** | Kokoro-82M | The default. A one-time ~90 MB download, then works offline |
+| | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean, ~260 MB |
+| | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, ~60 MB each |
+| **Other** | Local server | Any OpenAI-compatible `/v1/audio/speech` server, e.g. [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) |
+| | System voices | Your computer's built-in voices |
+
+### Reading
+
+- **Sentence highlighting**, without changing the page. The page scrolls to follow along.
+- **Natural speech:** consecutive sentences are sent as one request, so the voice keeps its intonation. The first sentence is sent on its own, so speech starts quickly.
+- **Play/pause, previous/next sentence**, and speed from 0.5× to 3× with pitch preserved.
+- **Start anywhere:** use **Start from…**, Alt/⌥+click a sentence, or select text and right-click → *Read aloud from here*.
+- **Resumes where you left off** on each page.
+- **Control it from any tab:** the popup shows what's being read, with pause and stop. The toolbar icon shows a red ▶︎ while it plays.
+- **Kindle Cloud Reader:** reads book pages with on-device OCR and turns pages automatically ([details](#kindle-cloud-reader)).
+- **Readable errors:** click an error in the player to see the full message and the server's response.
 
 ## Install from source
 
@@ -96,18 +125,49 @@ Found a bug or have an idea? [Open an issue](https://github.com/swrdfish/Narro/i
 
 ### Architecture
 
+Narro is a Manifest V3 extension with no framework and no build-time code generation: plain ES
+modules bundled by esbuild.
+
+```mermaid
+flowchart LR
+  UI["Popup and settings<br/>(options.html)"] -->|start, pause, stop| BG
+  KEYS["Shortcuts and<br/>context menu"] --> BG
+  BG["background.js<br/>service worker"] <-->|sentences, playback events| CS
+  subgraph TAB["The tab being read"]
+    CS["content.js<br/>text, highlighting, player"]
+  end
+  BG <-->|speech requests, audio events| OFF["offscreen.js<br/>synthesizes and plays audio"]
+  OFF --> LW["local-worker.js<br/>Kokoro, Supertonic, Piper"]
+  OFF --> CLOUD[("Cloud speech APIs<br/>OpenAI, ElevenLabs, Gemini, OpenRouter")]
+  OFF --> OCR["Tesseract OCR<br/>Kindle pages"]
 ```
-popup / shortcuts / context menu
-          │
-   background.js (service worker): injects content.js on demand and routes messages
-      │                                   │
-content.js                          offscreen.html/js: synthesizes and plays audio, reports
- - text.js: main-content detection,   playback progress, prefetches upcoming sentence groups
-   sentence segmentation, DOM Ranges     └─ local-worker.js: Kokoro, Supertonic, Piper (ONNX Runtime Web)
- - chunks.js: sentence groups per request
- - kindle*.js: Kindle OCR, layout, page turning
- - the floating player and highlighting
-```
+
+**What happens when you press Play**
+
+1. The background injects `content.js` into the tab. It's only injected when you start reading, using the `activeTab` permission.
+2. `content.js` finds the page's main content (`text.js`) and splits it into sentences, each mapped to a DOM range for highlighting. On Kindle, the page image is recognized with OCR instead (`kindle*.js`).
+3. It sends a group of sentences (`chunks.js`) to the background, which passes it to the offscreen document. System voices are spoken by the background with `chrome.tts`.
+4. `offscreen.js` synthesizes the audio with the chosen engine (`engines.js`), plays it, and prepares the next groups in advance.
+5. Playback progress flows back to the page, which moves the highlight sentence by sentence. At the end of a group it requests the next one; on Kindle it turns the page.
+6. The tab reports whether it's playing or paused (`reader-state.js`). That drives the toolbar badge and the popup's "Now reading" card.
+
+**Source files**
+
+| File | What it does |
+|---|---|
+| `background.js` | Service worker: injects the page script, routes messages, keeps the reading state and badge |
+| `content.js` | In the page: reading list, playback control, highlighting, the floating player |
+| `text.js` | Main-content detection and sentence segmentation, mapped to DOM ranges |
+| `chunks.js` | Groups sentences into speech requests; maps playback progress to the current sentence |
+| `offscreen.js`, `engines.js` | Audio playback and the speech engines; caching and prefetching |
+| `local-worker.js`, `progress.js` | In-browser voices on ONNX Runtime Web, and their download progress |
+| `kindle.js`, `kindle-ocr.js`, `kindle-text.js`, `kindle-capture.js` | Kindle: finding the page image, OCR, reading order, page turning |
+| `positions.js` | Remembers where reading stopped on each page |
+| `reader-state.js` | Which tab is reading, for the badge and the popup |
+| `options.html`, `options.js`, `select.js`, `shortcuts.js` | The popup and settings page, its dropdowns and shortcut display |
+| `settings.js`, `models.json` | Default settings, and the model and voice lists |
+
+**Design notes**
 
 - Audio plays in an offscreen document, so a page's security policy can't block it, and cloud APIs are called from the extension's own origin.
 - Each speech request carries a sequence number, so the page ignores events from requests it has already replaced.
