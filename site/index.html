@@ -31,6 +31,7 @@
     <nav aria-label="Page sections">
       <a href="#voices">Voices</a>
       <a href="#features">Features</a>
+      <a href="#kindle">Kindle</a>
       <a href="#privacy">Privacy</a>
       <!-- GitHub's Star button with the live count, from buttons.github.io (github-buttons). -->
       <span class="gh">
@@ -122,12 +123,30 @@
           <li><strong>Start anywhere.</strong> Pick a sentence with <em>Start from…</em>, or select text and right-click.</li>
           <li><strong>Picks up where you left off.</strong> Narro remembers your place on every page.</li>
           <li><strong>Control it from any tab.</strong> Pause or stop from the toolbar; a red ▶︎ shows while it plays.</li>
-          <li><strong>Books too.</strong> Reads Kindle Cloud Reader pages with on-device text recognition and turns the pages for you.</li>
+          <li><strong>Books too.</strong> Reads <a href="#kindle">Kindle Cloud Reader</a> pages with on-device text recognition and turns the pages for you.</li>
         </ul>
       </div>
       <figure class="popup-shot">
         <img src="popup.png" width="392" height="579" alt="Narro's popup, showing the page being read with pause and stop buttons, and the voice engine, voice and speed settings">
       </figure>
+    </section>
+
+    <section id="kindle" class="section kindle">
+      <h2>Listen to your Kindle books</h2>
+      <p class="section-lede">Kindle Cloud Reader shows book pages as pictures, not text, so most read-aloud tools can't read them. Narro recognises the words on the page you can see, on your own computer, and reads them with your chosen voice.</p>
+      <ol class="kindle-steps">
+        <li><strong>Recognises the page</strong><span>Text recognition (Tesseract) runs in your browser. The page image never leaves your computer.</span></li>
+        <li><strong>Reads it aloud</strong><span>With the same highlighting and voices as any other page.</span></li>
+        <li><strong>Turns the page</strong><span>Narro presses Kindle's Next page button and carries on, chapter after chapter.</span></li>
+      </ol>
+      <ul class="kindle-details">
+        <li>No gap at the page turn: the next page is recognised while the last sentence is still playing.</li>
+        <li>A sentence split across two pages or columns is spoken once, in full.</li>
+        <li>Turn the page yourself and Narro reads the new one.</li>
+        <li>Keeps reading when the Kindle tab is behind another window.</li>
+        <li>Works on Kindle Cloud Reader in every Amazon store (read.amazon.com, .co.uk, .in, .de and more). English text only for now.</li>
+      </ul>
+      <p class="kindle-note">Narro is an independent project, not affiliated with or endorsed by Amazon. Kindle is a trademark of Amazon.com, Inc. Narro only reads pages you have open yourself, but automated use of Kindle Cloud Reader may be restricted by Amazon's terms, so check that your use complies with them.</p>
     </section>
 
     <section id="privacy" class="section privacy">

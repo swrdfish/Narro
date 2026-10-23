@@ -169,6 +169,21 @@ h1 {
 .popup-shot { margin: 0; width: 330px; }
 .popup-shot img { display: block; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 
+.kindle-steps {
+  list-style: none; counter-reset: step; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; border-top: 1px solid var(--border);
+}
+.kindle-steps li { counter-increment: step; display: grid; gap: 4px; padding-top: 22px; }
+.kindle-steps li::before {
+  content: counter(step); display: grid; place-items: center; width: 30px; height: 30px; margin-bottom: 8px;
+  border-radius: 50%; background: var(--green); color: var(--ink); font: 700 15px/1 var(--font-head);
+}
+.kindle-steps strong { font: 600 18px/1.3 var(--font-head); }
+.kindle-steps span { font-size: 15px; color: var(--muted); }
+.kindle-details { margin: 36px 0 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 44em; }
+.kindle-details li::marker { color: var(--green); }
+.kindle-note { margin: 24px 0 0; max-width: 48em; font-size: 14px; color: var(--muted); }
+
 .privacy ul { margin: 18px 0 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 40em; }
 .privacy li::marker { color: var(--green); }
 
@@ -191,6 +206,7 @@ h1 {
   .voice-group, .voice-group + .voice-group { padding: 22px 0 6px; border-left: 0; }
   .voice-group + .voice-group { border-top: 1px solid var(--border); }
   .features-section { grid-template-columns: 1fr; }
+  .kindle-steps { grid-template-columns: 1fr; gap: 0; }
   .popup-shot { width: min(330px, 100%); }
 }
 @media (max-width: 560px) {
