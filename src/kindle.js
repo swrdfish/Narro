@@ -87,7 +87,76 @@ function signature(surfaces) {
 
 // Kindle's own "next page" control; the label is localized on some storefronts, the id is not.
 const NEXT_PAGE = '#kr-chevron-right, button[aria-label="Next page"]';
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function pressNextPage() {
+  const next = document.querySelector(NEXT_PAGE);
+  if (next && !next.disabled && next.checkVisibility?.() !== false) return press(next);
+  const key = { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39, bubbles: true, cancelable: true };
+  (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', key));
+  (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keyup', key));
+}
+
+/**
+ * Resolves true once the page differs from `before` and has stayed the same for a moment (Kindle can
+ * swap images while rendering), or false after `timeout` ms. Driven by DOM changes and image loads,
+ * because Chrome slows timers in hidden tabs; a slow poll covers pages drawn on a canvas.
+ */
+function waitForPageChange(before, signal, timeout) {
+  return new Promise((resolve, reject) => {
+    let candidate = null;
+    let settle = null;
+    const check = () => {
+      const surfaces = findKindleSurfaces();
+      const current = surfaces.length ? signature(surfaces) : null;
+      if (!current || current === before) {
+        candidate = null;
+        clearTimeout(settle);
+        return;
+      }
+      if (current === candidate) return;
+      candidate = current;
+      clearTimeout(settle);
+      settle = setTimeout(() => (signature(findKindleSurfaces()) === candidate ? finish(true) : check()), 200);
+    };
+    const observer = new MutationObserver(check);
+    const poll = setInterval(check, 250);
+    const deadline = setTimeout(() => finish(false), timeout);
+    const abort = () => finish(undefined, signal.reason ?? new DOMException('Aborted', 'AbortError'));
+    function finish(value, error) {
+      observer.disconnect();
+      document.removeEventListener('load', check, true);
+      signal.removeEventListener('abort', abort);
+      clearInterval(poll);
+      clearTimeout(settle);
+      clearTimeout(deadline);
+      if (error) reject(error);
+      else resolve(value);
+    }
+    observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['src', 'style', 'class', 'hidden'] });
+    document.addEventListener('load', check, true); // image loads
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    else check();
+  });
+}
+
+function waitUntilVisible(signal) {
+  return new Promise((resolve, reject) => {
+    if (!document.hidden) return resolve();
+    const abort = () => {
+      document.removeEventListener('visibilitychange', changed);
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+    };
+    const changed = () => {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', changed);
+      signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    document.addEventListener('visibilitychange', changed);
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
 
 // Kindle's buttons react to pointer events; a bare element.click() is ignored.
 function press(element) {
@@ -144,44 +213,30 @@ export function createKindleReader(onChange) {
 
   function check() {
     const surfaces = findKindleSurfaces();
-    if (currentSignature !== signature(surfaces) || currentElements.some((element, index) => element !== surfaces[index]?.element) || document.hidden) changed();
+    // Only a real page change stops reading; a hidden tab (another window on top) doesn't.
+    if (currentSignature !== signature(surfaces) || currentElements.some((element, index) => element !== surfaces[index]?.element)) changed();
   }
 
   return {
     /**
-     * Turns to the next page and waits until a different page has settled.
-     * Resolves false if nothing changed (end of the book, or the reader ignored the request).
+     * Turns to the next page and waits until a different page has settled. Resolves false if
+     * nothing changed (end of the book). If the tab is hidden and Kindle doesn't draw the new page
+     * meanwhile, waits until the tab is visible again (reporting it via `onWaiting`).
      */
-    async turnPage(signal) {
+    async turnPage(signal, { onWaiting } = {}) {
       // This is our own page change; don't report it as the user's.
       clearInterval(monitor);
       monitor = null;
       const before = signature(findKindleSurfaces());
-      const next = document.querySelector(NEXT_PAGE);
-      if (next && !next.disabled && next.checkVisibility?.() !== false) press(next);
-      else {
-        const key = { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39, bubbles: true, cancelable: true };
-        (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', key));
-        (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keyup', key));
-      }
-      const deadline = Date.now() + 10000;
-      let candidate = null;
-      let since = 0;
-      while (Date.now() < deadline) {
-        await sleep(100);
-        signal.throwIfAborted();
-        const surfaces = findKindleSurfaces();
-        const current = surfaces.length ? signature(surfaces) : null;
-        if (!current || current === before) {
-          candidate = null;
-        } else if (current !== candidate) {
-          candidate = current;
-          since = Date.now();
-        } else if (Date.now() - since >= 200) {
-          return true;
-        }
-      }
-      return false;
+      pressNextPage();
+      if (await waitForPageChange(before, signal, 10000)) return true;
+      if (!document.hidden) return false;
+      onWaiting?.();
+      await waitUntilVisible(signal);
+      // The turn may have been queued and drawn now; only press again if it wasn't.
+      if (await waitForPageChange(before, signal, 3000)) return true;
+      pressNextPage();
+      return waitForPageChange(before, signal, 10000);
     },
     async read(options, signal, onStatus, hidePlayer) {
       let surfaces = findKindleSurfaces();
