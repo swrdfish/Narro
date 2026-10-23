@@ -4,6 +4,7 @@ import { buildSentences, findContentRoot, sentenceAt } from './text.js';
 import { getSettings, saveSettings, ENGINES, KOKORO_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction } from './chunks.js';
+import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
 
 // Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
 const EARLY_TURN_LEAD = 1.5;
@@ -105,6 +106,20 @@ function main() {
     return chrome.runtime.sendMessage(msg).catch((e) => ({ error: e.message }));
   }
 
+  // --- Where reading left off on this page ---
+  const positionKey = () => pageKey(location, kindle ? new URL(location.href).searchParams.get('asin') : null);
+
+  function rememberPosition() {
+    // On Kindle the page may already have turned under the old page's last sentence; the new
+    // page's first sentence is saved when it starts.
+    if (!state.sentences[state.idx] || (kindle && upcoming)) return;
+    savePosition(chrome.storage.local, positionKey(), state.sentences, state.idx).catch(() => {});
+  }
+
+  function forgetPosition() {
+    clearPosition(chrome.storage.local, positionKey()).catch(() => {});
+  }
+
   // System voices don't report playback progress, so they get one sentence per request.
   const singleSentence = () => state.settings?.engine === 'system';
 
@@ -126,6 +141,7 @@ function main() {
     if (kindle && i === state.sentences.length && i > 0 && state.settings?.autoTurnPages) return nextKindlePage();
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
+    rememberPosition();
     const end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
     state.chunk = { start: i, end };
     const seq = ++state.seq;
@@ -144,6 +160,7 @@ function main() {
       state.idx = i;
       highlight(i);
       ui.render();
+      rememberPosition();
     }
     // When the page's last two sentences share this clip there is no clip boundary between them:
     // turn the page when the second-to-last sentence has about EARLY_TURN_LEAD seconds left.
@@ -182,7 +199,8 @@ function main() {
     try {
       kindle.highlight(null);
       ui.setInfo('Turning page…');
-      if (!(await kindle.turnPage(signal))) return { end: true };
+      const turned = await kindle.turnPage(signal, { onWaiting: () => ui.setInfo('Turning the page when the Kindle tab is visible again…') });
+      if (!turned) return { end: true };
       const sentences = await kindle.read({ lang: 'en', skipIncompleteLast: state.settings.skipIncompleteLast }, signal,
         kindleStatus, (hidden) => ui.captureHidden(hidden));
       signal.throwIfAborted();
@@ -229,6 +247,7 @@ function main() {
     if (result.end) {
       setStatus('idle');
       clearHighlight();
+      forgetPosition();
       ui.setInfo('Reached the end of the book.');
       return;
     }
@@ -273,9 +292,18 @@ function main() {
   async function start(fromSelection = false) {
     if (!(await prepare())) return;
     let i = selectionStart();
+    let resumed = false;
+    if (i < 0 && !fromSelection) {
+      // Resume where reading stopped on this page. Websites can fall back to the saved position;
+      // Kindle needs the same sentence on the page that's open.
+      const saved = await loadPosition(chrome.storage.local, positionKey()).catch(() => null);
+      i = findPosition(state.sentences, saved, { allowIndex: !kindle });
+      resumed = i >= 0;
+    }
     if (i < 0) i = fromSelection ? 0 : firstVisibleSentence();
     ui.show();
     play(i);
+    if (resumed && i > 0) ui.setInfo('Resuming where you left off');
   }
 
   function stop() {
@@ -294,6 +322,7 @@ function main() {
   function finish() {
     stop();
     state.idx = 0;
+    forgetPosition(); // read to the end: next time starts afresh
     ui.setInfo('Finished');
   }
 

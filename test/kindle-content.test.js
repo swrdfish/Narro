@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 const bundle = (await build({ entryPoints: ['src/content.js'], bundle: true, write: false, format: 'iife', platform: 'browser', target: 'chrome116' })).outputFiles[0].text;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-function fixture() {
+function fixture({ store = { settings: { engine: 'system' } } } = {}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body><img id="book" src="blob:https://read.amazon.in/first-page"></body></html>', {
     url: 'https://read.amazon.in/?asin=B00AK9IXXM', runScripts: 'outside-only', pretendToBeVisual: true,
   });
@@ -33,7 +33,7 @@ function fixture() {
       },
     },
     storage: {
-      local: { get: async () => ({ settings: { engine: 'system' } }), set: async () => {} },
+      local: { get: async (key) => ({ [key]: store[key] }), set: async (values) => Object.assign(store, values) },
       onChanged: { addListener() {} },
     },
   };
@@ -41,7 +41,14 @@ function fixture() {
   const message = (value) => { for (const listener of listeners) listener(value, {}, () => {}); };
   const defaultWords = [{ text: 'Hello.', box: { x0: 20, y0: 40, x1: 100, y1: 80 }, line: 0 }, { text: 'Goodbye.', box: { x0: 120, y0: 40, x1: 240, y1: 80 }, line: 0 }];
   const complete = (words = defaultWords) => completeExtraction({ pages: [{ source: 'ocr', width: 800, height: 1000, paragraphs: [{ words }] }] });
-  return { dom, window, page, messages, message, complete };
+  // Lets a test hide or show the tab.
+  let hidden = false;
+  Object.defineProperty(window.document, 'hidden', { configurable: true, get: () => hidden });
+  const setHidden = (value) => {
+    hidden = value;
+    window.document.dispatchEvent(new window.Event('visibilitychange'));
+  };
+  return { dom, window, page, messages, message, complete, store, setHidden };
 }
 
 test('Kindle playback uses extracted text, overlay highlights and the existing speech engine', async () => {
@@ -308,6 +315,88 @@ test('after a stop, re-reading the new page still starts with the sentence carri
     context.complete(line('harbor', 'was', 'empty.', 'Rain', 'came.'));
     await flush();
     assert.equal(speaks(context).at(-1).text, 'By noon the harbor was empty.', 'not the bare fragment "harbor was empty."');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('a hidden tab does not stop Kindle reading', async () => {
+  const context = fixture();
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.'));
+    await flush();
+    context.setHidden(true);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    assert.equal(context.messages.some((message) => message.type === 'stop'), false);
+    context.message({ type: 'tts-event', event: 'ended', seq: speaks(context).at(-1).seq });
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'Gulls stayed.');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('a page turn while the tab is hidden waits for it to be visible, then continues', async () => {
+  const context = fixture();
+  const next = context.window.document.createElement('button');
+  next.id = 'kr-chevron-right';
+  let pressed = false;
+  let queued = false;
+  next.addEventListener('pointerdown', () => { pressed = true; });
+  // Like a page that doesn't draw while hidden: the turn happens once the tab is visible.
+  next.addEventListener('click', () => { if (pressed) { pressed = false; queued = true; } });
+  context.window.document.addEventListener('visibilitychange', () => {
+    if (!context.window.document.hidden && queued) context.page.src = 'blob:https://read.amazon.in/second-page';
+  });
+  context.window.document.body.append(next);
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'By', 'noon', 'the'));
+    await flush();
+    context.setHidden(true);
+    context.message({ type: 'tts-event', event: 'ended', seq: speaks(context).at(-1).seq });
+    await new Promise((resolve) => setTimeout(resolve, 10600));
+    const player = context.window.document.getElementById('ai-reader-host');
+    assert.equal(player.shadowRoot.querySelector('.info').textContent, 'Turning the page when the Kindle tab is visible again…');
+    assert.equal(extracts(context).length, 1);
+    context.setHidden(false);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.equal(extracts(context).length, 2, 'new page recognized after becoming visible');
+    context.complete(line('harbor', 'was', 'empty.'));
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'By noon the harbor was empty.');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('on Kindle, reading resumes at the saved sentence on the reopened page', async () => {
+  const store = { settings: { engine: 'system' } };
+  let context = fixture({ store });
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.', 'Wind', 'rose.'));
+    await flush();
+    context.message({ type: 'tts-event', event: 'ended', seq: speaks(context).at(-1).seq });
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'Gulls stayed.');
+    context.message({ type: 'control', action: 'stop' });
+  } finally { context.dom.window.close(); }
+
+  context = fixture({ store });
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await flush();
+    context.complete(line('Boats', 'left.', 'Gulls', 'stayed.', 'Wind', 'rose.'));
+    await flush();
+    assert.equal(speaks(context).at(-1).text, 'Gulls stayed.');
   } finally {
     context.message({ type: 'control', action: 'stop' });
     context.dom.window.close();
