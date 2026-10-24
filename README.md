@@ -14,7 +14,7 @@
 
 Narro is a Chrome extension that reads the page you're on and highlights each sentence as it's
 spoken. Use a cloud voice with your own API key, or a voice that runs entirely in your browser,
-with no account and no server.
+with no account and no server. It also supports Kindle Online Reader.
 
 <table>
   <tr>
@@ -37,9 +37,9 @@ with no account and no server.
 | | ElevenLabs | Your own voices, listed with your key |
 | | Google Gemini | Gemini TTS voices |
 | | [OpenRouter](https://openrouter.ai) | One key for speech models from many providers |
-| **In your browser** | Kokoro-82M | The default. A one-time ~90 MB download, then works offline |
-| | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean, ~260 MB |
-| | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, ~60 MB each |
+| **In your browser** | Kokoro-82M | 8 voices in English, ~90 MB download |
+| | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean, ~260 MB download |
+| | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, ~60 MB download each |
 | **Other** | Local server | Any OpenAI-compatible `/v1/audio/speech` server, e.g. [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) |
 | | System voices | Your computer's built-in voices |
 
@@ -48,11 +48,11 @@ with no account and no server.
 - **Sentence highlighting**, without changing the page. The page scrolls to follow along.
 - **Natural speech:** consecutive sentences are sent as one request, so the voice keeps its intonation. The first sentence is sent on its own, so speech starts quickly.
 - **Play/pause, previous/next sentence**, and speed from 0.5× to 3× with pitch preserved.
-- **Start anywhere:** use **Start from…**, Alt/⌥+click a sentence, or select text and right-click → *Read aloud from here*.
+- **Start anywhere:** Point and select capability. Select text and right-click → *Read aloud from here*.
 - **Resumes where you left off** on each page.
 - **Control it from any tab:** the popup shows what's being read, with pause and stop. The toolbar icon shows a red ▶︎ while it plays.
 - **Kindle Cloud Reader:** reads book pages with on-device OCR and turns pages automatically ([details](#kindle-cloud-reader)).
-- **Readable errors:** click an error in the player to see the full message and the server's response.
+
 
 ## Install from source
 
@@ -70,21 +70,20 @@ npm run build
 3. Click the Narro icon, choose a voice engine, then **Read this page**.
 
 Keyboard shortcuts are shown in the popup and can be changed at `chrome://extensions/shortcuts`.
-The defaults are Alt/⌥+Shift+R (play/pause), Alt/⌥+Shift+←/→ (previous/next) and Alt/⌥+Shift+S (stop).
+
 
 ## Privacy
 
-- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With OpenRouter, it goes to OpenRouter and the model's provider. With Kokoro, Supertonic, Piper or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
+- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With OpenRouter, it goes to OpenRouter and the model's provider. With local models like Kokoro, Supertonic, Piper or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
 - **API keys** are stored in `chrome.storage.local` on your computer. They're never synced and never sent anywhere except to the provider they belong to.
 - **Model downloads**: in-browser voices download their model files from Hugging Face on first use, then cache them in your browser.
 - **Reading positions**: Narro stores a short fingerprint of the last sentence you heard on each page, plus its position, for up to 200 pages. These stay on your computer and don't include the text itself.
-- Narro has no analytics, accounts or servers of its own.
+- **Narro has no analytics, accounts or servers of its own**.
 
 ## Kindle Cloud Reader
 
-Kindle Cloud Reader shows book pages as images rather than text, so on `read.amazon.*` Narro runs
-**OCR (text recognition) on the page you can see**, entirely on your computer, using Tesseract. It
-then reads the recognized text with your chosen voice.
+Kindle Cloud Reader shows book pages as images rather than text, so on (`read.amazon.com`, `.co.uk`, `.in`, `.de` and more) Narro runs
+**OCR (text recognition) on the page you can see**, entirely on your computer, using Tesseract. It then reads the recognized text with your chosen voice.
 
 - At the end of a page, Narro presses Kindle's **Next page** button and keeps reading. It can turn the page slightly early, while the page's last sentence is still playing, so there's no pause. Both behaviours can be switched off in the settings.
 - A sentence split across a page turn or a column break is spoken once, in full.
@@ -143,30 +142,6 @@ flowchart LR
   OFF --> OCR["Tesseract OCR<br/>Kindle pages"]
 ```
 
-**What happens when you press Play**
-
-1. The background injects `content.js` into the tab. It's only injected when you start reading, using the `activeTab` permission.
-2. `content.js` finds the page's main content (`text.js`) and splits it into sentences, each mapped to a DOM range for highlighting. On Kindle, the page image is recognized with OCR instead (`kindle*.js`).
-3. It sends a group of sentences (`chunks.js`) to the background, which passes it to the offscreen document. System voices are spoken by the background with `chrome.tts`.
-4. `offscreen.js` synthesizes the audio with the chosen engine (`engines.js`), plays it, and prepares the next groups in advance.
-5. Playback progress flows back to the page, which moves the highlight sentence by sentence. At the end of a group it requests the next one; on Kindle it turns the page.
-6. The tab reports whether it's playing or paused (`reader-state.js`). That drives the toolbar badge and the popup's "Now reading" card.
-
-**Source files**
-
-| File | What it does |
-|---|---|
-| `background.js` | Service worker: injects the page script, routes messages, keeps the reading state and badge |
-| `content.js` | In the page: reading list, playback control, highlighting, the floating player |
-| `text.js` | Main-content detection and sentence segmentation, mapped to DOM ranges |
-| `chunks.js` | Groups sentences into speech requests; maps playback progress to the current sentence |
-| `offscreen.js`, `engines.js` | Audio playback and the speech engines; caching and prefetching |
-| `local-worker.js`, `progress.js` | In-browser voices on ONNX Runtime Web, and their download progress |
-| `kindle.js`, `kindle-ocr.js`, `kindle-text.js`, `kindle-capture.js` | Kindle: finding the page image, OCR, reading order, page turning |
-| `positions.js` | Remembers where reading stopped on each page |
-| `reader-state.js` | Which tab is reading, for the badge and the popup |
-| `options.html`, `options.js`, `select.js`, `shortcuts.js` | The popup and settings page, its dropdowns and shortcut display |
-| `settings.js`, `models.json` | Default settings, and the model and voice lists |
 
 **Design notes**
 
