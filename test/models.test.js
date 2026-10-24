@@ -27,3 +27,16 @@ for (const engine of ['openai', 'elevenlabs', 'gemini', 'piper']) {
 test('Piper voice ids follow piper-voices naming (lang-speaker-quality)', () => {
   for (const id of Object.keys(models.piper)) assert.match(id, /^[a-z]{2,3}_[A-Z]{2}-[a-z0-9_]+-(x_low|low|medium|high)$/, id);
 });
+
+test('models.json gives the download size and memory of every in-browser model', () => {
+  const sizes = (entry, name) => {
+    assert.ok(entry, `${name} is missing`);
+    for (const field of ['downloadMB', 'memoryMB']) assert.ok(Number.isFinite(entry[field]) && entry[field] > 0, `${name}.${field}`);
+  };
+  for (const engine of ['kokoro', 'supertonic']) {
+    const spec = models.local[engine];
+    assert.ok(typeof spec?.parameters === 'string' && spec.parameters, `local.${engine}.parameters`);
+    for (const device of ['wasm', 'webgpu']) sizes(spec[device], `local.${engine}.${device}`);
+  }
+  for (const id of Object.keys(models.piper)) sizes(models.local.piper[id], `local.piper["${id}"]`);
+});

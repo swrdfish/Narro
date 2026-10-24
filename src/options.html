@@ -81,7 +81,8 @@
       </div>
 
       <div class="engine" data-engine="kokoro">
-        <p class="note">Kokoro-82M runs entirely on your machine. The first use downloads the model (~90 MB on CPU, ~300 MB with WebGPU); after that it works offline.</p>
+        <p class="note">Kokoro-82M runs entirely on your machine. The first use downloads the model; after that it works offline.</p>
+        <dl class="specs" id="kokoro-specs"></dl>
         <label class="field"><span>Voice</span><select data-key="kokoro.voice" id="kokoro-voices"></select></label>
         <label class="field"><span>Device</span>
           <select data-key="kokoro.device">
@@ -93,7 +94,8 @@
       </div>
 
       <div class="engine" data-engine="supertonic">
-        <p class="note">Supertonic 2 by Supertone runs on your machine and speaks English, Spanish, French, Portuguese and Korean. The first use downloads the model (~260 MB); after that it works offline. Model licence: OpenRAIL.</p>
+        <p class="note">Supertonic 2 by Supertone runs on your machine and speaks English, Spanish, French, Portuguese and Korean. The first use downloads the model; after that it works offline. Model licence: OpenRAIL.</p>
+        <dl class="specs" id="supertonic-specs"></dl>
         <label class="field"><span>Voice</span><select data-key="supertonic.voice" id="supertonic-voices"></select></label>
         <label class="field"><span>Language</span><select data-key="supertonic.language" id="supertonic-languages"></select></label>
         <label class="field"><span>Device</span>
@@ -106,7 +108,8 @@
       </div>
 
       <div class="engine" data-engine="piper">
-        <p class="note">Piper voices run on your machine. Each voice downloads once (~60 MB, more for high quality) and then works offline. Voices come from rhasspy/piper-voices; each has its own licence on its model card.</p>
+        <p class="note">Piper voices run on your machine. Each voice downloads once and then works offline. Voices come from rhasspy/piper-voices; each has its own licence on its model card.</p>
+        <dl class="specs" id="piper-specs"></dl>
         <label class="field"><span>Voice</span><select data-key="piper.voice" id="piper-voices"></select></label>
       </div>
 

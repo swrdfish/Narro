@@ -211,6 +211,74 @@ async function loadModels() {
   }
 }
 
+// --- Download size and memory of the in-browser models (models.json "local") ---
+
+// Auto runs Kokoro and Supertonic on WebGPU when the browser offers an adapter, as the voice worker
+// decides (local-worker.js useWebGpu), so the sizes shown are the ones that will download.
+let webGpuAvailable = false;
+async function detectWebGpu() {
+  // Don't hold up the popup if the GPU is slow to answer.
+  const timeout = new Promise((resolve) => setTimeout(resolve, 1000, null));
+  webGpuAvailable = 'gpu' in navigator && !!(await Promise.race([navigator.gpu.requestAdapter().catch(() => null), timeout]));
+}
+const deviceFor = (engine) => {
+  const device = settings[engine].device;
+  return device === 'auto' ? (webGpuAvailable ? 'webgpu' : 'wasm') : device;
+};
+
+// The model the current settings use: the device's build for Kokoro and Supertonic, the chosen Piper voice.
+function localSize(local, engine) {
+  const spec = local?.[engine];
+  return engine === 'piper' ? spec?.[settings.piper.voice] : spec?.[deviceFor(engine)];
+}
+
+function fillSpecs(list, rows) {
+  list.replaceChildren(...rows.map(([term, value]) => {
+    const row = document.createElement('div');
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = term;
+    dd.textContent = value;
+    row.append(dt, dd);
+    return row;
+  }));
+}
+
+const PEAK = 'at its peak while reading, for all of Narro';
+
+function renderLocalSpecs(local) {
+  for (const engine of ['kokoro', 'supertonic']) {
+    const size = localSize(local, engine);
+    if (!size) continue;
+    const device = deviceFor(engine) === 'webgpu' ? 'WebGPU' : 'CPU';
+    const auto = settings[engine].device === 'auto' ? ` (Auto uses ${device} on this computer)` : '';
+    const parameters = local[engine].parameters;
+    fillSpecs($(`#${engine}-specs`), [
+      ['Download', `${size.downloadMB} MB, the ${device} model${auto}`],
+      ['Memory', `About ${size.memoryMB} MB ${PEAK}`],
+      ['Model', `${parameters[0].toUpperCase()}${parameters.slice(1)} parameters`],
+    ]);
+  }
+  const voice = localSize(local, 'piper');
+  fillSpecs($('#piper-specs'), voice ? [
+    ['Download', `${voice.downloadMB} MB for this voice`],
+    ['Memory', `About ${voice.memoryMB} MB ${PEAK}`],
+  ] : []);
+}
+
+// The engine list and the Piper voice list show sizes as a second line under each choice.
+function labelLocalSizes(local) {
+  for (const engine of ['kokoro', 'supertonic', 'piper']) {
+    const size = localSize(local, engine);
+    const option = $(`#engine option[value="${engine}"]`);
+    if (size && option) option.dataset.detail = `Download ${size.downloadMB} MB · Memory about ${size.memoryMB} MB`;
+  }
+  for (const option of $('#piper-voices').options) {
+    const size = local?.piper?.[option.value];
+    if (size) option.dataset.detail = `${size.downloadMB} MB download`;
+  }
+}
+
 function setStatus(text, isError = false) {
   $('#status').textContent = text;
   $('#status').classList.toggle('error', isError);
@@ -284,6 +352,9 @@ async function init() {
   fillSelect($('#openrouter-models'), { [settings.openrouter.model]: settings.openrouter.model }, settings.openrouter.model);
   fillOpenRouterVoices();
   fillSelect($('#piper-voices'), models.piper || {}, settings.piper.voice);
+  await detectWebGpu();
+  labelLocalSizes(models.local);
+  renderLocalSpecs(models.local);
   // The local server's own model list is loaded once it's reachable (see loadDynamicVoices).
   fillSelect($('#local-models'), { [settings.localServer.model]: settings.localServer.model }, settings.localServer.model);
   addRevealButtons();
@@ -315,6 +386,10 @@ async function init() {
       }
       if (key === 'openai.model') updateStyleField();
       if (key === 'openrouter.model') fillOpenRouterVoices();
+      if (/^(kokoro|supertonic)\.device$|^piper\.voice$/.test(key)) {
+        labelLocalSizes(models.local);
+        renderLocalSpecs(models.local);
+      }
       scheduleSave();
     });
     // Refresh voice lists once a key or server URL is entered.

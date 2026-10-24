@@ -69,6 +69,14 @@ export function enhanceSelect(select) {
       el.setAttribute('role', 'option');
       el.textContent = option.text;
       el.title = option.text;
+      // An option's data-detail shows as a second, quieter line (e.g. a model's download size).
+      if (option.dataset.detail) {
+        const detail = doc.createElement('span');
+        detail.className = 'cs-detail';
+        detail.textContent = option.dataset.detail;
+        el.append(detail);
+        el.title += `\n${option.dataset.detail}`;
+      }
       if (option.disabled) el.setAttribute('aria-disabled', 'true');
       const index = options.length;
       el.addEventListener('pointerdown', (event) => event.preventDefault()); // keep focus on the button
@@ -106,7 +114,7 @@ export function enhanceSelect(select) {
     set(value) { nativeValue.set.call(this, value); sync(); },
   });
   // Options are replaced when model or voice lists load.
-  new win.MutationObserver(render).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['label', 'disabled'] });
+  new win.MutationObserver(render).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['label', 'disabled', 'data-detail'] });
 
   function setActive(index, scroll) {
     options[active]?.el.classList.remove('active');
