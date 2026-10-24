@@ -118,3 +118,14 @@ test('a line break separates lines instead of joining their words', () => {
   assert.equal(new Set(s.map((x) => x.blockIndex)).size, 3, 'each line is its own block');
   for (const x of s) assert.equal(x.range.toString(), x.text);
 });
+
+test('reads text inside a display: contents wrapper, which checkVisibility() calls hidden', (t) => {
+  // Like Chrome: an element with no box of its own, or display: none, is "not visible".
+  const proto = dom.window.Element.prototype;
+  proto.checkVisibility = function () {
+    return !['contents', 'none'].includes(dom.window.getComputedStyle(this).display);
+  };
+  t.after(() => delete proto.checkVisibility);
+  const s = buildSentences(page('<main><div style="display: contents"><p>Read me.</p></div><div style="display: none"><p>Not me.</p></div></main>'));
+  assert.deepEqual(texts(s), ['Read me.']);
+});

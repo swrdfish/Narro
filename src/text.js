@@ -66,7 +66,10 @@ function isSkipped(el, cache) {
   else if (el.getAttribute('aria-hidden') === 'true' || el.hidden) skip = true;
   else if (SKIP_ROLES.has(el.getAttribute('role'))) skip = true;
   else if (el.id === 'ai-reader-host') skip = true;
-  else if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) skip = true;
+  // A display: contents element has no box, so checkVisibility() reports it hidden even though its
+  // children show (ChatGPT wraps the whole conversation in one). Its children are checked instead.
+  else if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })
+    && el.ownerDocument.defaultView.getComputedStyle(el).display !== 'contents') skip = true;
   cache.set(el, skip);
   return skip;
 }
