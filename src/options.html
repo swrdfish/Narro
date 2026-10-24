@@ -41,6 +41,7 @@
             <option value="kokoro">Kokoro — runs in your browser</option>
             <option value="supertonic">Supertonic — runs in your browser</option>
             <option value="piper">Piper — runs in your browser</option>
+            <option value="kitten">Kitten TTS Nano — runs in your browser</option>
             <option value="localServer">Local server (OpenAI-compatible)</option>
             <option value="system">System voices</option>
           </optgroup>
@@ -111,6 +112,12 @@
         <p class="note">Piper voices run on your machine. Each voice downloads once and then works offline. Voices come from rhasspy/piper-voices; each has its own licence on its model card.</p>
         <dl class="specs" id="piper-specs"></dl>
         <label class="field"><span>Voice</span><select data-key="piper.voice" id="piper-voices"></select></label>
+      </div>
+
+      <div class="engine" data-engine="kitten">
+        <p class="note">Kitten TTS Nano 0.8 by KittenML is a small English model that runs on your machine. The first use downloads it; after that it works offline. Model licence: Apache 2.0.</p>
+        <dl class="specs" id="kitten-specs"></dl>
+        <label class="field"><span>Voice</span><select data-key="kitten.voice" id="kitten-voices"></select></label>
       </div>
 
       <div class="engine" data-engine="localServer">

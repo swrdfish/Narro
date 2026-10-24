@@ -40,3 +40,8 @@ test('models.json gives the download size and memory of every in-browser model',
   }
   for (const id of Object.keys(models.piper)) sizes(models.local.piper[id], `local.piper["${id}"]`);
 });
+
+test('models.json gives Kitten TTS its download size, memory and parameters', () => {
+  const kitten = models.local.kitten;
+  assert.ok(kitten.downloadMB > 0 && kitten.memoryMB > 0 && kitten.parameters, 'local.kitten');
+});

@@ -1,12 +1,13 @@
-// Runs the in-browser voices (Kokoro, Supertonic, Piper) off the main thread, so generation never
+// Runs the in-browser voices (Kokoro, Supertonic, Piper, Kitten) off the main thread, so generation never
 // blocks playback or pause/stop. One model is kept loaded at a time.
 import { KokoroTTS, env as kokoroEnv } from 'kokoro-js';
 import { pipeline } from '@huggingface/transformers';
 import * as ort from 'onnxruntime-web';
 import { phonemize } from 'phonemizer';
 import { downloadProgress } from './progress.js';
+import { KITTEN_MODEL, KITTEN_SAMPLE_RATE, KITTEN_TRIM_SAMPLES, KITTEN_VOICE_IDS, kittenChunks, kittenSpeed, kittenStyle, kittenTokens, readNpz } from './kitten.js';
 
-const ENGINE_NAMES = { kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper' };
+const ENGINE_NAMES = { kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', kitten: 'Kitten TTS' };
 
 // Keep chrome://extensions → Errors for real problems. ONNX Runtime warns, for example, when a few
 // model nodes run on the CPU under WebGPU (expected, "to improve perf"), and Transformers.js warns
@@ -76,8 +77,8 @@ function piperPath(name) {
 }
 
 // Fetches a file once and keeps it in the browser's cache, reporting download progress.
-async function cachedFetch(url, onProgress) {
-  const cache = await caches.open('narro-piper');
+async function cachedFetch(url, onProgress, cacheName = 'narro-piper') {
+  const cache = await caches.open(cacheName);
   const hit = await cache.match(url);
   if (hit) return hit.arrayBuffer();
   const res = await fetch(url);
@@ -100,10 +101,10 @@ async function cachedFetch(url, onProgress) {
   return bytes.buffer;
 }
 
-// Punctuation stays as-is: Piper's phoneme map includes it and uses it for pauses and intonation.
+// Punctuation stays as-is: Piper's and Kitten's symbol tables include it and use it for pauses and intonation.
 const PUNCTUATION = /(\s*[;:,.!?¡¿—…"«»“”(){}[\]]+\s*)+/g;
 
-async function piperPhonemes(text, espeakVoice) {
+async function espeakPhonemes(text, espeakVoice) {
   let result = '';
   let last = 0;
   for (const match of text.matchAll(PUNCTUATION)) {
@@ -125,7 +126,7 @@ async function loadPiper({ voice }) {
   const ids = config.phoneme_id_map;
   const { noise_scale: noise = 0.667, length_scale: length = 1, noise_w: noiseW = 0.8 } = config.inference || {};
   return async (text) => {
-    const phonemes = await piperPhonemes(text, config.espeak?.voice || 'en-us');
+    const phonemes = await espeakPhonemes(text, config.espeak?.voice || 'en-us');
     // Piper's encoding: ^ then each phoneme followed by the pad symbol, then $.
     const sequence = [...ids['^'], ...ids._];
     for (const symbol of phonemes) {
@@ -144,9 +145,39 @@ async function loadPiper({ voice }) {
   };
 }
 
+// --- Kitten TTS Nano (KittenML; espeak phonemes → StyleTTS 2-style model, see kitten.js) ----------
+
+async function loadKitten() {
+  const report = progressReporter('Kitten TTS model');
+  const voices = readNpz(await cachedFetch(`${KITTEN_MODEL}/voices.npz`, null, 'narro-kitten'));
+  const model = await cachedFetch(`${KITTEN_MODEL}/kitten_tts_nano_v0_8.onnx`, report, 'narro-kitten');
+  status('Loading Kitten TTS…');
+  const session = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] });
+  return async (text, { voice }) => {
+    const id = KITTEN_VOICE_IDS[voice] || voice;
+    if (!voices[id]) throw new Error(`no voice named ${voice}`);
+    // Like the reference: one sentence at a time, joined, each with its end silence trimmed.
+    const parts = [];
+    for (const chunk of kittenChunks(text)) {
+      const tokens = kittenTokens(await espeakPhonemes(chunk, 'en-us'));
+      const output = await session.run({
+        input_ids: new ort.Tensor('int64', BigInt64Array.from(tokens, BigInt), [1, tokens.length]),
+        style: new ort.Tensor('float32', Float32Array.from(kittenStyle(voices[id], chunk.length)), [1, voices[id].shape[1]]),
+        speed: new ort.Tensor('float32', Float32Array.from([kittenSpeed(id)]), [1]),
+      });
+      const audio = output[session.outputNames[0]].data;
+      parts.push(audio.subarray(0, Math.max(0, audio.length - KITTEN_TRIM_SAMPLES)));
+    }
+    const samples = new Float32Array(parts.reduce((n, part) => n + part.length, 0));
+    let offset = 0;
+    for (const part of parts) { samples.set(part, offset); offset += part.length; }
+    return { samples, sampleRate: KITTEN_SAMPLE_RATE };
+  };
+}
+
 // --- Dispatch -----------------------------------------------------------------------------------
 
-const LOADERS = { kokoro: loadKokoro, supertonic: loadSupertonic, piper: loadPiper };
+const LOADERS = { kokoro: loadKokoro, supertonic: loadSupertonic, piper: loadPiper, kitten: loadKitten };
 // What determines a reload: switching engine, device, or (for Piper) voice.
 const modelKey = (engine, options) => JSON.stringify([engine, options.device, engine === 'piper' ? options.voice : '']);
 

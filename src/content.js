@@ -1,7 +1,7 @@
 // Content script: builds the reading list, drives sentence-by-sentence playback,
 // highlights the current sentence and shows the floating player.
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
-import { getSettings, saveSettings, ENGINES, KOKORO_VOICES, SUPERTONIC_VOICES } from './settings.js';
+import { getSettings, saveSettings, ENGINES, KITTEN_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
@@ -645,7 +645,7 @@ function main() {
 function voiceLabel(settings) {
   if (!settings) return '';
   const engine = settings.engine;
-  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', openrouter: 'OpenRouter', kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', localServer: 'Local server', system: 'System voice' }[engine] || engine;
+  const name = { openai: 'OpenAI', elevenlabs: 'ElevenLabs', gemini: 'Gemini', openrouter: 'OpenRouter', kokoro: 'Kokoro', supertonic: 'Supertonic', piper: 'Piper', kitten: 'Kitten TTS', localServer: 'Local server', system: 'System voice' }[engine] || engine;
   const voice = {
     openai: settings.openai?.voice,
     gemini: settings.gemini?.voice,
@@ -653,6 +653,7 @@ function voiceLabel(settings) {
     kokoro: KOKORO_VOICES[settings.kokoro?.voice]?.replace(/ \(.*\)$/, ''),
     supertonic: SUPERTONIC_VOICES[settings.supertonic?.voice],
     piper: settings.piper?.voice?.split('-').slice(1, -1).join(' ').replace(/_/g, ' '),
+    kitten: KITTEN_VOICES[settings.kitten?.voice]?.replace(/ \(.*\)$/, ''),
     localServer: settings.localServer?.voice,
     system: settings.system?.voiceName,
   }[engine];

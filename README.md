@@ -53,6 +53,7 @@ with no account and no server. It also supports Kindle Online Reader.
 | **In your browser** | Kokoro-82M | 8 voices in English |
 | | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean |
 | | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages |
+| | [Kitten TTS Nano](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8) | 8 voices in English (Jasper, Bella, Luna, Bruno, Rosie, Hugo, Kiki, Leo); the smallest download |
 | **Other** | Local server | Any OpenAI-compatible `/v1/audio/speech` server, e.g. [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) |
 | | System voices | Your computer's built-in voices |
 
@@ -69,6 +70,7 @@ while reading, as Chrome's Task Manager shows it.
 | Supertonic 2 on WebGPU | 262.9 MB | about 800 MB |
 | Piper, medium-quality voice | 63.2–63.5 MB | about 800 MB |
 | Piper, high-quality voice | 113.9–120.8 MB | about 800 MB |
+| Kitten TTS Nano 0.8, CPU | 27.7 MB, all 8 voices | about 500 MB |
 
 Download sizes are the model files on Hugging Face. Memory was measured in Chromium on an M1 Pro,
 reading a 12-paragraph article with the model already downloaded, and rounded to 50 MB; expect some
@@ -112,7 +114,7 @@ Keyboard shortcuts are shown in the popup and can be changed at `chrome://extens
 
 ## Privacy
 
-- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With OpenRouter, it goes to OpenRouter and the model's provider. With local models like Kokoro, Supertonic, Piper or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
+- **Text you have read aloud**: with a cloud voice, the text is sent to that provider (OpenAI, ElevenLabs or Google) under your account and their terms. With OpenRouter, it goes to OpenRouter and the model's provider. With local models like Kokoro, Supertonic, Piper, Kitten TTS or system voices, nothing leaves your computer. A local server receives the text at the address you configure.
 - **API keys** are stored in `chrome.storage.local` on your computer. They're never synced and never sent anywhere except to the provider they belong to.
 - **Model downloads**: in-browser voices download their model files from Hugging Face on first use, then cache them in your browser.
 - **Reading positions**: Narro stores a short fingerprint of the last sentence you heard on each page, plus its position, for up to 200 pages. These stay on your computer and don't include the text itself.
@@ -183,7 +185,7 @@ flowchart LR
     CS["content.js<br/>text, highlighting, player"]
   end
   BG <-->|speech requests, audio events| OFF["offscreen.js<br/>synthesizes and plays audio"]
-  OFF --> LW["local-worker.js<br/>Kokoro, Supertonic, Piper"]
+  OFF --> LW["local-worker.js<br/>Kokoro, Supertonic, Piper, Kitten"]
   OFF --> CLOUD[("Cloud speech APIs<br/>OpenAI, ElevenLabs, Gemini, OpenRouter")]
   OFF --> OCR["Tesseract OCR<br/>Kindle pages"]
 ```
@@ -200,6 +202,6 @@ flowchart LR
 Narro's source code is released under the [MIT License](LICENSE).
 
 The built extension also includes third-party components under their own licences, including
-**eSpeak NG (GPL-3.0-or-later)** through the phonemizer used by Kokoro and Piper. See
+**eSpeak NG (GPL-3.0-or-later)** through the phonemizer used by Kokoro, Piper and Kitten TTS. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details, including the licences of models that
 are downloaded at runtime.

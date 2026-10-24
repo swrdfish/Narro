@@ -43,6 +43,9 @@ export const DEFAULT_SETTINGS = {
   piper: {
     voice: 'en_US-lessac-medium', // see models.json "piper"
   },
+  kitten: {
+    voice: 'Jasper', // see KITTEN_VOICES
+  },
   localServer: {
     // Any OpenAI-compatible /audio/speech server: Kokoro-FastAPI, Orpheus-FastAPI, LocalAI, etc.
     baseUrl: 'http://localhost:8880/v1',
@@ -63,6 +66,7 @@ export const ENGINES = {
   kokoro: { label: 'Kokoro (in-browser)', kind: 'local' },
   supertonic: { label: 'Supertonic (in-browser)', kind: 'local' },
   piper: { label: 'Piper (in-browser)', kind: 'local' },
+  kitten: { label: 'Kitten TTS Nano (in-browser)', kind: 'local' },
   localServer: { label: 'Local server (OpenAI-compatible)', kind: 'local' },
   system: { label: 'System voices', kind: 'local' },
 };
@@ -77,6 +81,12 @@ export const SUPERTONIC_VOICES = {
 };
 
 export const SUPERTONIC_LANGUAGES = { en: 'English', es: 'Spanish', fr: 'French', pt: 'Portuguese', ko: 'Korean' };
+
+// Kitten TTS Nano 0.8's voices (US English).
+export const KITTEN_VOICES = {
+  Jasper: 'Jasper (M)', Bella: 'Bella (F)', Luna: 'Luna (F)', Bruno: 'Bruno (M)',
+  Rosie: 'Rosie (F)', Hugo: 'Hugo (M)', Kiki: 'Kiki (F)', Leo: 'Leo (M)',
+};
 
 export const KOKORO_VOICES = {
   af_heart: 'Heart (US F)', af_bella: 'Bella (US F)', af_nicole: 'Nicole (US F)', af_aoede: 'Aoede (US F)',

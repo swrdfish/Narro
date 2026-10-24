@@ -10,10 +10,11 @@ Narro's own source code is released under the MIT License (see `LICENSE`). The b
 | [Transformers.js](https://github.com/huggingface/transformers.js) (`@huggingface/transformers`) | Running the Kokoro and Supertonic models | Apache-2.0 |
 | [kokoro-js](https://github.com/hexgrad/kokoro) | Kokoro text-to-speech | Apache-2.0 |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (`onnxruntime-web`, including the WebAssembly files in `dist/ort/`) | Model inference | MIT |
-| [phonemizer](https://github.com/xenova/phonemizer) | Text-to-phoneme conversion for Kokoro and Piper | Apache-2.0 |
+| [phonemizer](https://github.com/xenova/phonemizer) | Text-to-phoneme conversion for Kokoro, Piper and Kitten TTS | Apache-2.0 |
 | ↳ [eSpeak NG](https://github.com/espeak-ng/espeak-ng), compiled into phonemizer, including `espeak-ng-data` | Phoneme rules and dictionaries | **GPL-3.0-or-later** |
 | [Tesseract.js](https://github.com/naptha/tesseract.js) and [tesseract.js-core](https://github.com/naptha/tesseract.js-core) (`dist/ocr/`) | OCR of Kindle pages | Apache-2.0 |
 | [Tesseract English data](https://github.com/tesseract-ocr/tessdata_best) (`@tesseract.js-data/eng`, `dist/ocr/eng.traineddata.gz`) | OCR language model | Apache-2.0 (data); MIT (npm package) |
+| [KittenTTS](https://github.com/KittenML/KittenTTS) 0.8 reference code, adapted in `src/kitten.js` (symbol table, tokenizer, sentence splitting, voice styles) | Kitten TTS text handling | Apache-2.0 |
 | [Geist](https://github.com/vercel/geist-font) SemiBold (`src/fonts/`) | Wordmark in the popup | SIL Open Font License 1.1 (`src/fonts/Geist-OFL.txt`) |
 
 Licence texts for Tesseract.js and tesseract.js-core are copied to `dist/ocr/` at build time, and the
@@ -38,5 +39,6 @@ Their licences apply to your use of them.
 | [Kokoro-82M](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) | Apache-2.0 |
 | [Supertonic 2](https://huggingface.co/onnx-community/Supertonic-TTS-2-ONNX) (Supertone) | OpenRAIL; review its use restrictions before commercial use |
 | [Piper voices](https://huggingface.co/rhasspy/piper-voices) | Varies by voice; see each voice's model card |
+| [Kitten TTS Nano 0.8](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8) (KittenML) | Apache-2.0 |
 
 Cloud voices (OpenAI, ElevenLabs, Google Gemini, OpenRouter and the providers it routes to) are used under your own account and those providers' terms.

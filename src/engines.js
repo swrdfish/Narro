@@ -144,7 +144,7 @@ function floatToInt16(f32) {
   return out;
 }
 
-// --- In-browser voices (Kokoro, Supertonic, Piper) via ONNX Runtime Web, in a worker --------------
+// --- In-browser voices (Kokoro, Supertonic, Piper, Kitten) via ONNX Runtime Web, in a worker --------------
 
 let worker = null;
 let nextId = 0;
@@ -259,6 +259,7 @@ export async function synthesize(settings, text, { onStatus } = {}) {
     case 'kokoro':
     case 'supertonic':
     case 'piper':
+    case 'kitten':
       return localSpeech(settings.engine, settings[settings.engine], text, onStatus);
     default:
       throw new Error(`Unknown engine: ${settings.engine}`);

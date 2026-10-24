@@ -34,7 +34,7 @@
     "hi_IN-pratham-medium": "Pratham · Hindi, male"
   },
   "local": {
-    "_about": "In-browser models. downloadMB: the ONNX model files Narro downloads, from their sizes on Hugging Face (Kokoro: model_quantized.onnx on CPU, model.onnx on WebGPU; Supertonic: its three fp32 models). memoryMB: Narro's peak memory while reading with that model (extension process plus GPU-process growth), measured in Chromium on an M1 Pro reading a 12-paragraph article with the model already downloaded, rounded to 50 MB. Piper voices of one quality share an architecture, so they share the measured figure. Kokoro and Supertonic list a size per device setting (wasm = CPU).",
+    "_about": "In-browser models. downloadMB: the ONNX model files Narro downloads, from their sizes on Hugging Face (Kokoro: model_quantized.onnx on CPU, model.onnx on WebGPU; Supertonic: its three fp32 models; Kitten TTS Nano 0.8: the int8 model plus voices.npz). memoryMB: Narro's peak memory while reading with that model (extension process plus GPU-process growth), measured in Chromium on an M1 Pro reading a 12-paragraph article with the model already downloaded, rounded to 50 MB. Piper voices of one quality share an architecture, so they share the measured figure. Kokoro and Supertonic list a size per device setting (wasm = CPU); Kitten runs on the CPU only.",
     "kokoro": {
       "parameters": "82 million",
       "wasm": {
@@ -126,6 +126,11 @@
         "downloadMB": 63.5,
         "memoryMB": 800
       }
+    },
+    "kitten": {
+      "parameters": "15 million",
+      "downloadMB": 27.7,
+      "memoryMB": 500
     }
   }
 }

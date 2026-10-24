@@ -1,5 +1,5 @@
 import {
-  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
+  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KITTEN_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
 } from './settings.js';
 import { PAGE_SHORTCUTS, shortcutKeys } from './shortcuts.js';
 import { enhanceSelects } from './select.js';
@@ -219,10 +219,12 @@ const deviceFor = (engine) => {
   return device === 'auto' ? (webGpuAvailable ? 'webgpu' : 'wasm') : device;
 };
 
-// The model the current settings use: the device's build for Kokoro and Supertonic, the chosen Piper voice.
+// The model the current settings use: the device's build for Kokoro and Supertonic, the chosen Piper
+// voice, or Kitten's one model.
 function localSize(local, engine) {
   const spec = local?.[engine];
-  return engine === 'piper' ? spec?.[settings.piper.voice] : spec?.[deviceFor(engine)];
+  if (engine === 'piper') return spec?.[settings.piper.voice];
+  return engine === 'kitten' ? spec : spec?.[deviceFor(engine)];
 }
 
 function fillSpecs(list, rows) {
@@ -252,6 +254,14 @@ function renderLocalSpecs(local) {
       ['Model', `${parameters[0].toUpperCase()}${parameters.slice(1)} parameters`],
     ]);
   }
+  const kitten = localSize(local, 'kitten');
+  if (kitten) {
+    fillSpecs($('#kitten-specs'), [
+      ['Download', `${kitten.downloadMB} MB, all 8 voices`],
+      ['Memory', `About ${kitten.memoryMB} MB ${PEAK}`],
+      ['Model', `${kitten.parameters[0].toUpperCase()}${kitten.parameters.slice(1)} parameters`],
+    ]);
+  }
   const voice = localSize(local, 'piper');
   fillSpecs($('#piper-specs'), voice ? [
     ['Download', `${voice.downloadMB} MB for this voice`],
@@ -261,7 +271,7 @@ function renderLocalSpecs(local) {
 
 // The engine list and the Piper voice list show sizes as a second line under each choice.
 function labelLocalSizes(local) {
-  for (const engine of ['kokoro', 'supertonic', 'piper']) {
+  for (const engine of ['kokoro', 'supertonic', 'piper', 'kitten']) {
     const size = localSize(local, engine);
     const option = $(`#engine option[value="${engine}"]`);
     if (size && option) option.dataset.detail = `Download ${size.downloadMB} MB · Memory about ${size.memoryMB} MB`;
@@ -335,6 +345,7 @@ async function init() {
   fillSelect($('#gemini-voices'), Object.fromEntries(GEMINI_VOICES.map((v) => [v, v])), settings.gemini.voice);
   fillSelect($('#kokoro-voices'), KOKORO_VOICES, settings.kokoro.voice);
   fillSelect($('#supertonic-voices'), SUPERTONIC_VOICES, settings.supertonic.voice);
+  fillSelect($('#kitten-voices'), KITTEN_VOICES, settings.kitten.voice);
   fillSelect($('#supertonic-languages'), SUPERTONIC_LANGUAGES, settings.supertonic.language);
   fillSelect($('#elevenlabs-voices'), { [settings.elevenlabs.voiceId]: 'George (default) — add API key to list voices' }, settings.elevenlabs.voiceId);
   const models = await loadModels();
