@@ -1,6 +1,6 @@
 // Keyboard shortcuts as Chrome reports them, turned into key caps in the platform's notation.
 
-// Keys handled by the page script, only while Narro's player shows on the page. Chrome's own
+// Keys handled by the page script, only in the tab Narro is reading (playing, loading or paused). Chrome's own
 // extension shortcuts apply everywhere in the browser, where they clash with system and page keys
 // (⌥⇧← / ⌥⇧→ select by word on macOS), so none is set by default. `code` is the physical key:
 // on macOS, ⌥⇧R types "‰", not "R".

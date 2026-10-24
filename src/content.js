@@ -510,9 +510,11 @@ function main() {
   // Typing in a field keeps its own keys (⌥⇧← / ⌥⇧→ select by word on macOS).
   const isEditable = (target) => target?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]') || target?.isContentEditable;
 
-  // The player's shortcuts, only while it's showing on this page.
+  // The player's shortcuts, only in the tab that's reading (playing, loading or paused). A tab whose
+  // player still shows after reading moved to another tab, or stopped, leaves the keys to the page.
+  const isReading = () => ui.visible && (state.preparing || state.status !== 'idle');
   document.addEventListener('keydown', (e) => {
-    if (!ui.visible || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.repeat) return;
+    if (!isReading() || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.repeat) return;
     const shortcut = PAGE_SHORTCUTS.find((s) => s.code === e.code);
     if (!shortcut || isEditable(e.composedPath()[0])) return;
     e.preventDefault();
