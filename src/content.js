@@ -3,7 +3,7 @@
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
 import { getSettings, saveSettings, ENGINES, KOKORO_VOICES, SUPERTONIC_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
-import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction } from './chunks.js';
+import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
 
 // Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
@@ -141,6 +141,8 @@ function main() {
   function forgetPosition() {
     clearPosition(chrome.storage.local, positionKey()).catch(() => {});
   }
+
+  const BLOCK_PAUSE_MS = 250; // silence between blocks of text
 
   // System voices don't report playback progress, so they get one sentence per request.
   const singleSentence = () => state.settings?.engine === 'system';
@@ -566,9 +568,20 @@ function main() {
       case 'progress':
         followProgress(msg.time, msg.duration);
         break;
-      case 'ended':
-        if (state.status !== 'paused') play(state.chunk.end + 1, { first: false });
+      case 'ended': {
+        if (state.status === 'paused') break;
+        const next = state.chunk.end + 1;
+        if (!startsNewBlock(state.sentences, next)) {
+          play(next, { first: false });
+          break;
+        }
+        // A short pause between blocks (heading to paragraph, paragraph to paragraph…), like a reader takes.
+        const seq = state.seq;
+        setTimeout(() => {
+          if (seq === state.seq && state.status !== 'paused' && state.status !== 'idle') play(next, { first: false });
+        }, BLOCK_PAUSE_MS);
         break;
+      }
       case 'status':
         ui.setInfo(msg.status);
         break;

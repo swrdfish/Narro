@@ -17,11 +17,17 @@ export function chunkEnd(sentences, start, { first = false, single = false } = {
     end + 1 < sentences.length
     && end + 1 - start < CHUNK_MAX_SENTENCES
     && chars + 1 + sentences[end + 1].text.length <= CHUNK_MAX_CHARS
+    && !startsNewBlock(sentences, end + 1) // a heading, paragraph, list item… is its own clip
   ) {
     end++;
     chars += 1 + sentences[end].text.length;
   }
   return end;
+}
+
+/** Whether sentence `index` begins a different block (heading, paragraph, list item…) from the one before. */
+export function startsNewBlock(sentences, index) {
+  return index > 0 && index < sentences.length && sentences[index].blockIndex !== sentences[index - 1].blockIndex;
 }
 
 export function chunkText(sentences, start, end) {

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { JSDOM } from 'jsdom';
-import { chunkEnd, chunkText, sentenceAtFraction, CHUNK_MAX_SENTENCES } from '../src/chunks.js';
+import { chunkEnd, chunkText, sentenceAtFraction, startsNewBlock, CHUNK_MAX_SENTENCES } from '../src/chunks.js';
 
 const s = (...texts) => texts.map((text) => ({ text }));
 
@@ -117,4 +117,19 @@ test('system voices keep one sentence per request', async () => {
     context.message({ type: 'control', action: 'stop' });
     context.dom.window.close();
   }
+});
+
+test('chunks stop at a block change, so headings and paragraphs are separate clips', () => {
+  const s = [
+    { text: 'A heading', blockIndex: 0 },
+    { text: 'First sentence.', blockIndex: 1 },
+    { text: 'Second sentence.', blockIndex: 1 },
+    { text: 'Next paragraph.', blockIndex: 2 },
+  ];
+  assert.equal(chunkEnd(s, 0), 0);
+  assert.equal(chunkEnd(s, 1), 2);
+  assert.equal(startsNewBlock(s, 1), true);
+  assert.equal(startsNewBlock(s, 2), false);
+  assert.equal(startsNewBlock(s, 3), true);
+  assert.equal(startsNewBlock(s, 0), false);
 });

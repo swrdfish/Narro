@@ -105,3 +105,16 @@ test('sentenceAt finds the sentence containing a point', () => {
   assert.equal(sentenceAt(s, textNode, 3), 0);
   assert.equal(sentenceAt(s, textNode, 20), 1);
 });
+
+test('headings, paragraphs and list items are separate blocks, so the reader pauses between them', () => {
+  const s = buildSentences(page('<h1>A title</h1><p>One sentence. Two sentence.</p><ul><li>An item.</li><li>Another item.</li></ul>'), { skipIncompleteLast: false });
+  assert.deepEqual(texts(s), ['A title', 'One sentence.', 'Two sentence.', 'An item.', 'Another item.']);
+  assert.deepEqual(s.map((x) => x.blockIndex), [0, 1, 1, 2, 3]);
+});
+
+test('a line break separates lines instead of joining their words', () => {
+  const s = buildSentences(page('<p>First line<br>Second line<br><br>Third line.</p>'), { skipIncompleteLast: false });
+  assert.deepEqual(texts(s), ['First line', 'Second line', 'Third line.']);
+  assert.equal(new Set(s.map((x) => x.blockIndex)).size, 3, 'each line is its own block');
+  for (const x of s) assert.equal(x.range.toString(), x.text);
+});

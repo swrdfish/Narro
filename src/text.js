@@ -95,6 +95,7 @@ export function extractBlocks(root) {
   const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
       if (n.nodeType === Node.ELEMENT_NODE) {
+        if (n.tagName === 'BR') return NodeFilter.FILTER_ACCEPT; // a line break ends the run of text
         // Skipping an element rejects its whole subtree.
         return n !== root && isSkipped(n, skipCache) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
       }
@@ -105,6 +106,12 @@ export function extractBlocks(root) {
   const blocks = [];
   let current = null;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      // <br>: the next line starts a new block, so its words don't run into this line's and the
+      // reader pauses between them, as between paragraphs.
+      current = null;
+      continue;
+    }
     const el = blockAncestor(node, root, displayCache);
     if (!current || current.el !== el) {
       current = { el, text: '', pieces: [] };
