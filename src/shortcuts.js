@@ -1,5 +1,16 @@
 // Keyboard shortcuts as Chrome reports them, turned into key caps in the platform's notation.
 
+// Keys handled by the page script, only while Narro's player shows on the page. Chrome's own
+// extension shortcuts apply everywhere in the browser, where they clash with system and page keys
+// (⌥⇧← / ⌥⇧→ select by word on macOS), so none is set by default. `code` is the physical key:
+// on macOS, ⌥⇧R types "‰", not "R".
+export const PAGE_SHORTCUTS = [
+  { action: 'toggle', label: 'Play / pause', keys: 'Alt+Shift+R', code: 'KeyR' },
+  { action: 'prev', label: 'Previous sentence', keys: 'Alt+Shift+Left', code: 'ArrowLeft' },
+  { action: 'next', label: 'Next sentence', keys: 'Alt+Shift+Right', code: 'ArrowRight' },
+  { action: 'stop', label: 'Stop', keys: 'Alt+Shift+S', code: 'KeyS' },
+];
+
 // Chrome's key names → [macOS label, other label, macOS name, other name] (names are for tooltips).
 const KEYS = {
   Alt: ['⌥', 'Alt', 'Option', 'Alt'], Shift: ['⇧', 'Shift', 'Shift', 'Shift'],

@@ -5,6 +5,7 @@ import { getSettings, saveSettings, ENGINES, KOKORO_VOICES, SUPERTONIC_VOICES } 
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
+import { PAGE_SHORTCUTS } from './shortcuts.js';
 
 // Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
 const EARLY_TURN_LEAD = 1.5;
@@ -504,6 +505,19 @@ function main() {
     play(i);
   }, true);
 
+  // Typing in a field keeps its own keys (⌥⇧← / ⌥⇧→ select by word on macOS).
+  const isEditable = (target) => target?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]') || target?.isContentEditable;
+
+  // The player's shortcuts, only while it's showing on this page.
+  document.addEventListener('keydown', (e) => {
+    if (!ui.visible || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.repeat) return;
+    const shortcut = PAGE_SHORTCUTS.find((s) => s.code === e.code);
+    if (!shortcut || isEditable(e.composedPath()[0])) return;
+    e.preventDefault();
+    e.stopPropagation();
+    controls[shortcut.action]();
+  }, true);
+
   document.addEventListener('keydown', (e) => {
     if (kindle && (state.preparing || state.status !== 'idle') && !state.picking && !e.altKey && !onPlayer(e)
       && ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) stop();
@@ -535,19 +549,21 @@ function main() {
 
   // --- Messages ---------------------------------------------------------------------------------
 
+  // Controls from the popup, context menu, Chrome shortcuts and the page shortcuts.
+  const controls = {
+    toggle, next, prev,
+    pick: startPick,
+    stop: () => { cancelPick(); stop(); ui.hide(); },
+    'from-selection': () => { stop(); start(true); },
+  };
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'ping') {
       sendResponse({ pong: true });
       return;
     }
     if (msg.type === 'control') {
-      const actions = {
-        toggle, next, prev,
-        pick: startPick,
-        stop: () => { cancelPick(); stop(); ui.hide(); },
-        'from-selection': () => { stop(); start(true); },
-      };
-      actions[msg.action]?.();
+      controls[msg.action]?.();
       sendResponse({ ok: true });
       return;
     }

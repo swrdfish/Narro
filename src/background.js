@@ -208,7 +208,8 @@ async function startReading(tabId, mode = 'toggle') {
 }
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  const action = { 'toggle-reading': 'toggle', 'next-sentence': 'next', 'prev-sentence': 'prev', 'stop-reading': 'stop', 'pick-start': 'pick' }[command];
+  // Global shortcuts have no default keys; people can set them at chrome://extensions/shortcuts.
+  const action = { 'play-pause': 'toggle', 'pick-start': 'pick' }[command];
   if (action && tab?.id != null) startReading(tab.id, action).catch(() => {});
 });
 

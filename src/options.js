@@ -1,7 +1,7 @@
 import {
   getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
 } from './settings.js';
-import { shortcutKeys } from './shortcuts.js';
+import { PAGE_SHORTCUTS, shortcutKeys } from './shortcuts.js';
 import { enhanceSelects } from './select.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -108,13 +108,11 @@ async function setUpNowReading() {
   };
 }
 
-// --- Keyboard shortcuts, shown as assigned in Chrome and in the platform's notation ---
+// --- Keyboard shortcuts, in the platform's notation ---
+// The player's keys work on the page while it shows; Chrome's own shortcuts (any page) are optional.
 
-const SHORTCUT_ROWS = [
-  ['toggle-reading', 'Play / pause'],
-  ['prev-sentence', 'Previous sentence'],
-  ['next-sentence', 'Next sentence'],
-  ['stop-reading', 'Stop'],
+const CHROME_SHORTCUTS = [
+  ['play-pause', 'Play / pause on any page'],
   ['pick-start', 'Choose where to start'],
 ];
 function keyCaps(keys) {
@@ -138,18 +136,13 @@ async function renderShortcuts() {
     dd.append(...content);
     list.append(dt, dd);
   };
-  for (const [name, label] of SHORTCUT_ROWS) {
+  for (const { label, keys } of PAGE_SHORTCUTS) row(label, keyCaps(shortcutKeys(keys, mac)));
+  row('Jump to a sentence', keyCaps([...shortcutKeys('Alt', mac), { label: 'Click', name: 'Mouse click' }]));
+  // Chrome's shortcuts work everywhere, so they're only listed once someone has set one.
+  for (const [name, label] of CHROME_SHORTCUTS) {
     const keys = shortcutKeys(assigned[name], mac);
     if (keys.length) row(label, keyCaps(keys));
-    else {
-      const unset = document.createElement('span');
-      unset.className = 'unset';
-      unset.textContent = 'Not set';
-      row(label, [unset]);
-    }
   }
-  // Alt/Option + click is handled by the page script, not a Chrome command.
-  row('Jump to a sentence', keyCaps([...shortcutKeys('Alt', mac), { label: 'Click', name: 'Mouse click' }]));
 }
 
 function updateRangeFill(range) {
