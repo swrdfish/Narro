@@ -8,20 +8,52 @@
 
 Read the current webpage aloud with natural AI or on-device voices, with sentence highlighting and resume.
 
-**Detailed description**
+**Detailed description** (plain text; paste as is)
 
-Narro reads the webpage you are on aloud and highlights each sentence as it speaks. Choose a private voice that runs in your browser, a built-in system voice, or a cloud voice using your own API key.
+```text
+Narro reads the web page you're on aloud in a natural voice and highlights each sentence as it's spoken, so you can listen, follow along, or look away and keep going. Use a voice that runs entirely in your browser, with no account and nothing sent anywhere, or a cloud voice with your own API key.
 
-Features:
+LISTEN TO ANY PAGE
+• Click the Narro icon and press Read this page. Narro finds the article and skips menus, sidebars and footers.
+• Each sentence is highlighted as it's read, and the page scrolls to keep it in view.
+• Sentences are voiced together, with short pauses between headings and paragraphs, so it sounds like someone reading rather than a list of sentences.
+• Pick where to start: click Start from… and choose a sentence, select text and right-click Read aloud from here, or Alt-click (Option-click on a Mac) any sentence while reading.
+• Narro remembers your place on each page and picks up where you left off.
 
-- Follow along with sentence highlighting and automatic scrolling.
-- Start from any sentence, selected text, or where you last stopped.
-- Control playback from the toolbar or keyboard shortcuts.
-- Choose on-device Kokoro, Supertonic, Piper, or system voices. On-device voices work offline after their one-time model download.
-- Use your own OpenAI, ElevenLabs, Google Gemini, or OpenRouter API key.
-- Read Kindle Cloud Reader pages with on-device OCR.
+EASY TO CONTROL
+• A small player on the page: play/pause, previous and next sentence, and speed from 0.5× to 3× without changing the voice's pitch. Drag it anywhere; it remembers where you put it.
+• Keyboard keys while the player is showing: Alt+Shift+R to play or pause, Alt+Shift+← and → to move between sentences, Alt+Shift+S to stop. Narro takes no keys from other pages or apps.
+• Control reading from any tab with the toolbar popup. A red ▶︎ on the icon shows which tab is reading, and it keeps reading when that tab is in the background.
+• If a voice service fails, the player says what went wrong, with a Retry button.
 
-Privacy: on-device voices keep text on your computer. If you choose a cloud voice, Narro sends only the text you ask it to read to that provider using your API key. Narro has no accounts, analytics, or servers of its own. Full policy: https://swrdfish.github.io/Narro/privacy.html
+VOICES THAT RUN IN YOUR BROWSER
+No account, no API key, and the text never leaves your computer. Each model downloads once and then works offline.
+• Kokoro: natural English voices, the default (92 MB download on CPU, 326 MB with WebGPU).
+• Supertonic 2: 10 voices in English, Spanish, French, Portuguese and Korean (263 MB).
+• Piper: voices in many languages, including German, French, Spanish, Italian, Portuguese and Hindi (63–121 MB per voice).
+They use about 700 MB to 1 GB of memory while reading. Kokoro and Supertonic use your graphics card through WebGPU when it's available. The settings show the exact download and memory for your choice.
+
+CLOUD VOICES, WITH YOUR OWN KEY
+• OpenAI, including gpt-4o-mini-tts with style instructions such as "calm audiobook narration".
+• ElevenLabs, with the voices in your own library.
+• Google Gemini text-to-speech voices.
+• OpenRouter: one key for speech models from many providers.
+• Or any OpenAI-compatible speech server on your own computer, such as Kokoro-FastAPI.
+• Your computer's built-in system voices work too.
+
+LISTEN TO KINDLE BOOKS
+Kindle Cloud Reader shows pages as images, so most read-aloud tools can't read them. Narro recognises the text on the page you have open, on your computer, then reads it with your chosen voice and turns the page for you. A sentence split across two pages is read once, in full. English only for now. Narro is not affiliated with or endorsed by Amazon; check that your use complies with Amazon's terms.
+
+PRIVATE BY DEFAULT
+• With an in-browser voice, nothing you read leaves your computer.
+• With a cloud voice, only the text you ask Narro to read is sent, and only to the provider you chose, using your own key.
+• API keys stay in your browser and are never synced.
+• No accounts, no analytics, no servers of our own.
+Privacy policy: https://swrdfish.github.io/Narro/privacy.html
+
+FREE AND OPEN SOURCE
+Narro is free and MIT-licensed. Source code, issues and ideas: https://github.com/swrdfish/Narro
+```
 
 ## Assets to upload
 
