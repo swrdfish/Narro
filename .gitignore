@@ -3,3 +3,4 @@ dist/
 .DS_Store
 site-dist/
 narro-*.zip
+store-assets/video/out/

@@ -1,0 +1,365 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+@font-face { font-family: Inter; font-weight: 400; src: url("fonts/Inter-Regular.ttf"); }
+@font-face { font-family: Inter; font-weight: 500; src: url("fonts/Inter-Medium.ttf"); }
+@font-face { font-family: Inter; font-weight: 600; src: url("fonts/Inter-SemiBold.ttf"); }
+@font-face { font-family: Inter; font-weight: 700; src: url("fonts/Inter-Bold.ttf"); }
+@font-face { font-family: Inter; font-weight: 800; src: url("fonts/Inter-ExtraBold.ttf"); }
+:root { --bg: #f7f6f2; --ink: #1a1917; --ink-2: #5d5b55; --green: #4fb56e; --green-ink: #2f8f4e; --hl: #ffe066; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+body { font-family: Inter, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+.scene { position: absolute; inset: 0; opacity: 0; }
+
+/* Logo */
+.logo { display: block; }
+
+/* --- Intro / outro --- */
+.center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.brand { display: flex; align-items: center; gap: 36px; }
+.brand h1 { font-size: 180px; font-weight: 800; letter-spacing: -0.045em; line-height: 1; }
+.tagline { margin-top: 34px; font-size: 76px; font-weight: 800; letter-spacing: -0.03em; color: var(--green-ink); }
+.sub { margin-top: 22px; font-size: 34px; font-weight: 500; color: var(--ink-2); }
+.wave { position: absolute; top: 50%; display: flex; align-items: center; gap: 14px; }
+.wave i { display: block; width: 12px; border-radius: 6px; background: var(--green); }
+
+/* --- Browser demo --- */
+.caption { position: absolute; left: 0; right: 0; top: 46px; text-align: center; font-size: 50px; font-weight: 800; letter-spacing: -0.03em; }
+.caption span { position: absolute; left: 0; right: 0; }
+.browser { position: absolute; left: 150px; top: 140px; width: 1620px; height: 900px; border-radius: 22px; overflow: hidden;
+  background: #fcfcfb; box-shadow: 0 2px 4px rgba(26,25,23,.06), 0 30px 80px rgba(26,25,23,.18); border: 1px solid #e2e0d9; }
+.chrome { height: 104px; background: #ecebe6; border-bottom: 1px solid #dcdad3; position: relative; }
+.dots { position: absolute; left: 24px; top: 20px; display: flex; gap: 10px; }
+.dots i { width: 15px; height: 15px; border-radius: 50%; background: #d5d3cc; display: block; }
+.tab { position: absolute; left: 112px; top: 10px; height: 40px; width: 330px; background: #fcfcfb; border-radius: 12px 12px 0 0;
+  display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; font-weight: 500; color: #3a3935; }
+.tab b { width: 16px; height: 16px; border-radius: 4px; background: #c9b48a; display: block; }
+.toolbar { position: absolute; left: 0; right: 0; top: 50px; height: 54px; background: #fcfcfb; display: flex; align-items: center; padding: 0 18px; gap: 16px; }
+.toolbar .nav { color: #8c8a83; font-size: 24px; width: 26px; text-align: center; }
+.url { flex: 1; height: 36px; border-radius: 18px; background: #efeee9; display: flex; align-items: center; padding: 0 18px; font-size: 17px; color: #55534d; }
+.url em { font-style: normal; color: #9a988f; }
+.ext { position: relative; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; }
+.ext .badge { position: absolute; right: -3px; bottom: -2px; height: 15px; min-width: 15px; border-radius: 4px; background: #d93025; color: #fff;
+  font-size: 9px; display: grid; place-items: center; padding: 0 3px; }
+.page { position: absolute; top: 104px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.article { position: absolute; left: 0; right: 0; top: 0; width: 1120px; margin: 0 auto; padding-top: 70px; }
+.article h2 { font-size: 66px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; }
+.meta { margin-top: 16px; font-size: 25px; color: #6e6c66; }
+.article p { margin-top: 40px; font: 34px/1.75 Charter, Georgia, serif; color: #1c1b19; border-radius: 4px; }
+.article p:first-of-type { margin-top: 46px; }
+.s { border-radius: 3px; }
+
+/* The extension's player bar (copied from src/content.js), scaled up for video */
+.player { position: absolute; left: 50%; bottom: 34px; transform-origin: 50% 100%; }
+.bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; font: 13px/1.2 -apple-system, system-ui, sans-serif; color: #1d1d1f;
+  background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 999px; box-shadow: 0 8px 30px rgba(0,0,0,.18); white-space: nowrap; }
+.bar button { all: unset; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: inherit; }
+.bar button.play, .bar button.pick { background: #4fb56e; color: #1a1917; }
+.bar button.play { width: 38px; height: 38px; }
+.bar button.small { width: 24px; height: 24px; }
+.bar button.small svg { width: 14px; height: 14px; }
+.bar svg { width: 18px; height: 18px; fill: currentColor; }
+.rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+.pos { color: #6e6e73; font-variant-numeric: tabular-nums; padding: 0 6px; width: 72px; text-align: center; }
+.sep { width: 1px; height: 20px; background: rgba(0,0,0,.1); margin: 0 4px; }
+.info { width: 240px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: #6e6e73; font-size: 12px; }
+.grip { display: grid; place-items: center; width: 14px; height: 32px; margin-right: -2px; color: #6e6e73; }
+.grip svg { width: 14px; height: 14px; }
+
+.cursor { position: absolute; width: 34px; height: 34px; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.3)); }
+.ripple { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 3px solid var(--green); }
+
+/* --- Voices --- */
+.voices-left { position: absolute; left: 170px; top: 250px; width: 900px; }
+.voices-left h3, .features h3 { font-size: 86px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; }
+.group { margin-top: 54px; padding-left: 34px; position: relative; }
+.group::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 9px; border-radius: 5px; background: var(--green); }
+.group .k { font-size: 26px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--green-ink); }
+.group .v { margin-top: 8px; font-size: 44px; font-weight: 700; letter-spacing: -0.02em; }
+.group .n { margin-top: 6px; font-size: 28px; color: var(--ink-2); font-weight: 500; }
+.popup { position: absolute; right: 170px; top: 95px; width: 600px; border-radius: 26px; overflow: hidden; background: #fff;
+  box-shadow: 0 2px 4px rgba(26,25,23,.06), 0 30px 80px rgba(26,25,23,.2); border: 1px solid #e2e0d9; }
+.popup img { display: block; width: 100%; }
+
+/* --- Features --- */
+.features { position: absolute; inset: 0; padding: 230px 170px 0; }
+.cards { margin-top: 80px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.card { background: #fff; border: 1px solid #e2e0d9; border-radius: 30px; padding: 46px 42px 50px; box-shadow: 0 20px 50px rgba(26,25,23,.08); }
+.card .ic { width: 84px; height: 84px; border-radius: 22px; background: var(--ink); display: grid; place-items: center; }
+.card .ic svg { width: 44px; height: 44px; fill: var(--green); }
+.card h4 { margin-top: 34px; font-size: 42px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.12; }
+.card p { margin-top: 16px; font-size: 27px; line-height: 1.45; color: var(--ink-2); font-weight: 500; }
+
+.cta { margin-top: 56px; display: flex; gap: 22px; align-items: center; }
+.btn { height: 92px; padding: 0 46px; border-radius: 46px; background: var(--ink); color: #fff; font-size: 36px; font-weight: 700;
+  display: flex; align-items: center; gap: 18px; }
+.btn i { width: 18px; height: 18px; border-radius: 50%; background: var(--green); display: block; }
+.ghost { height: 92px; padding: 0 40px; border-radius: 46px; border: 2px solid #d9d7cf; font-size: 32px; font-weight: 600; color: var(--ink-2);
+  display: flex; align-items: center; }
+</style></head>
+<body>
+
+<template id="logo"><svg class="logo" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#1a1917"/><g fill="#4fb56e">
+  <rect class="b0" x="18" y="35" width="10" height="30" rx="5"/><rect class="b1" x="36" y="22" width="10" height="56" rx="5"/>
+  <rect class="b2" x="54" y="30" width="10" height="40" rx="5"/><rect class="b3" x="72" y="40" width="10" height="20" rx="5"/></g></svg></template>
+
+<!-- 1. Intro -->
+<section class="scene" id="intro">
+  <div class="wave" id="wave-l" style="right: calc(50% + 600px)"></div>
+  <div class="wave" id="wave-r" style="left: calc(50% + 600px)"></div>
+  <div class="center">
+    <div class="brand"><span class="logo-slot" data-size="190"></span><h1>Narro</h1></div>
+    <div class="tagline">Hear any page.</div>
+    <div class="sub">Natural AI voices read the web aloud, sentence by sentence.</div>
+  </div>
+</section>
+
+<!-- 2. Reading demo -->
+<section class="scene" id="demo">
+  <div class="caption"><span id="cap0">Click Narro on any page</span><span id="cap1">It reads aloud and highlights each sentence</span><span id="cap2">The page scrolls to follow along</span></div>
+  <div class="browser">
+    <div class="chrome">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <div class="tab"><b></b>The Mill on the River</div>
+      <div class="toolbar">
+        <span class="nav">‹</span><span class="nav">›</span>
+        <div class="url">millontheriver.blog<em>/stories/the-mill</em></div>
+        <div class="ext" id="ext"><span class="logo-slot" data-size="26"></span><span class="badge" id="badge">▶</span></div>
+      </div>
+    </div>
+    <div class="page">
+      <div class="article" id="article">
+        <h2>The Mill on the River</h2>
+        <div class="meta">A short story · 4 min read</div>
+        <p><span class="s">The river bent twice before it reached the old mill.</span> <span class="s">Nobody in the village remembered who had built it, and the records that might have told them burned long ago.</span></p>
+        <p><span class="s">Each spring the water rose and covered the lower steps.</span> <span class="s">Children dared each other to touch the rusted wheel, and their parents warned them, but the warnings never worked.</span></p>
+        <p><span class="s">One summer a stranger arrived with a box of tools.</span> <span class="s">He said he could make the wheel turn again by autumn.</span> <span class="s">Most people laughed, though a few brought him bread.</span></p>
+        <p><span class="s">By September the wheel was turning.</span> <span class="s">Nobody laughed after that.</span></p>
+      </div>
+      <div class="player" id="player">
+        <div class="bar">
+          <span class="grip"><svg viewBox="0 0 24 24"><path d="M8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-8 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg></span>
+          <button><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+          <button class="play"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg></button>
+          <button><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+          <span class="pos" id="pos">1 / 9</span>
+          <span class="sep"></span>
+          <button class="small"><svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button>
+          <span class="rate">1.0×</span>
+          <button class="small"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
+          <span class="sep"></span>
+          <span class="info">Kokoro · Heart</span>
+          <button class="pick"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
+          <button><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
+          <button><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z" transform="translate(1.4 0)"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ripple" id="ripple"></div>
+  <svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M4 2l16 10.5-7 1.2 4.2 7.6-3 1.6-4.1-7.7L4 20z" fill="#111" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>
+</section>
+
+<!-- 3. Voices -->
+<section class="scene" id="voices">
+  <div class="voices-left">
+    <h3>Pick a voice<br>you'll enjoy</h3>
+    <div class="group" id="g0"><div class="k">In your browser</div><div class="v">Kokoro · Supertonic · Piper</div><div class="n">Private, and offline after one download.</div></div>
+    <div class="group" id="g1"><div class="k">Cloud, with your own key</div><div class="v">OpenAI · ElevenLabs · Gemini · OpenRouter</div></div>
+    <div class="group" id="g2"><div class="k">Or</div><div class="v">System voices · a local speech server</div></div>
+  </div>
+  <div class="popup" id="popup"><img src="../../docs/popup.png" id="popup-img"></div>
+</section>
+
+<!-- 4. Features -->
+<section class="scene" id="features">
+  <div class="features">
+    <h3>Made for long reads</h3>
+    <div class="cards">
+      <div class="card" id="c0"><div class="ic"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></div>
+        <h4>Start anywhere</h4><p>Click any sentence, or select text and choose <i>Read aloud from here</i>.</p></div>
+      <div class="card" id="c1"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div>
+        <h4>Picks up where you left off</h4><p>Every page remembers your place.</p></div>
+      <div class="card" id="c2"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zm16 0h-4a2 2 0 0 0-1 .3V19a2 2 0 0 1 1-.3h4z"/></svg></div>
+        <h4>Kindle Cloud Reader</h4><p>Reads book pages with on-device OCR and turns them for you.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Outro -->
+<section class="scene" id="outro">
+  <div class="center">
+    <div class="brand"><span class="logo-slot" data-size="150"></span><h1 style="font-size:150px">Narro</h1></div>
+    <div class="sub" style="margin-top:30px;font-size:40px">Free and open source. No account needed.</div>
+    <div class="cta"><div class="btn"><i></i>Add to Chrome</div><div class="ghost">github.com/swrdfish/Narro</div></div>
+  </div>
+</section>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const logo = $('#logo').content.firstElementChild;
+for (const slot of document.querySelectorAll('.logo-slot')) {
+  const svg = logo.cloneNode(true);
+  svg.style.width = svg.style.height = slot.dataset.size + 'px';
+  slot.replaceWith(svg);
+}
+for (const side of ['#wave-l', '#wave-r']) {
+  const w = $(side);
+  for (let i = 0; i < 9; i++) w.append(document.createElement('i'));
+}
+
+// Sentence timing comes from the generated narration (durations in seconds).
+const TIMING = window.TIMING || { start: 6.2, gap: 0.3, durations: [3.225, 6.575, 3.575, 6.725] };
+const spans = [...document.querySelectorAll('.s')];
+const starts = [];
+{ let t = TIMING.start; for (const d of TIMING.durations) { starts.push([t, t + d]); t += d + TIMING.gap; } }
+const READ_END = starts.at(-1)[1];
+
+const S = {  // scene windows [in, out]
+  intro: [0, 3.6],
+  demo: [3.6, READ_END + 0.9],
+};
+S.voices = [S.demo[1], S.demo[1] + 6.6];
+S.features = [S.voices[1], S.voices[1] + 5.4];
+S.outro = [S.features[1], S.features[1] + 4.6];
+window.DURATION = S.outro[1];
+window.CLICK = S.demo[0] + 2.0; // when the cursor presses the Narro icon
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => 1 - Math.pow(1 - x, 3);
+const easeIO = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerp = (a, b, x) => a + (b - a) * x;
+const FADE = 0.45;
+
+function sceneAlpha(t, [a, b], first, last) {
+  const fin = first ? 1 : prog(t, a, a + FADE);
+  const fout = last ? 1 : 1 - prog(t, b, b + FADE);
+  return t < a || t > b + FADE ? 0 : Math.min(fin, fout);
+}
+function rise(el, t, at, dist = 40, dur = 0.7) {
+  const p = ease(prog(t, at, at + dur));
+  el.style.opacity = p;
+  el.style.transform = `translateY(${(1 - p) * dist}px)`;
+}
+
+function render(t) {
+  const names = Object.keys(S);
+  names.forEach((n, i) => {
+    const el = $('#' + n);
+    el.style.opacity = sceneAlpha(t, S[n], i === 0, i === names.length - 1);
+    el.style.zIndex = i;
+  });
+
+  // Intro: logo bars pulse like a voice, text rises in.
+  const ti = t - S.intro[0];
+  document.querySelectorAll('#intro .logo rect[class]').forEach((r, i) => {
+    const base = [30, 56, 40, 20][i];
+    const h = base * (0.75 + 0.25 * Math.sin(ti * 7 + i * 1.3));
+    r.setAttribute('height', h); r.setAttribute('y', 50 - h / 2);
+  });
+  rise($('#intro .brand'), t, 0.1, 30);
+  rise($('#intro .tagline'), t, 0.6);
+  rise($('#intro .sub'), t, 1.0);
+  document.querySelectorAll('.wave').forEach((w, side) => {
+    [...w.children].forEach((bar, i) => {
+      const k = side ? i : 8 - i;
+      const env = 1 - k / 10;
+      const h = 30 + 150 * env * (0.55 + 0.45 * Math.sin(ti * 6 + k * 0.9));
+      bar.style.height = h * ease(prog(t, 0.3 + k * 0.05, 1 + k * 0.05)) + 'px';
+      bar.style.opacity = 0.35 + 0.65 * env;
+    });
+    w.style.transform = 'translateY(-50%)';
+  });
+
+  // Demo
+  const d0 = S.demo[0];
+  const browser = $('.browser');
+  const bp = ease(prog(t, d0, d0 + 0.8));
+  browser.style.transform = `translateY(${(1 - bp) * 60}px) scale(${lerp(0.96, 1, bp)})`;
+
+  const CLICK = window.CLICK;
+  const caps = [[d0 + 0.3, starts[0][0] - 0.1], [starts[0][0] - 0.1, starts[2][0] - 0.3], [starts[2][0] - 0.3, S.demo[1] + 1]];
+  caps.forEach(([a, b], i) => {
+    const el = $('#cap' + i);
+    const p = Math.min(ease(prog(t, a, a + 0.5)), 1 - prog(t, b - 0.3, b));
+    el.style.opacity = p; el.style.transform = `translateY(${(1 - p) * 14}px)`;
+  });
+
+  // Cursor glides to the Narro icon, clicks, then leaves.
+  const ext = $('#ext').getBoundingClientRect();
+  const target = [ext.left + ext.width / 2 - 6, ext.top + ext.height / 2 - 4];
+  const from = [1180, 760], away = [1980, 600];
+  let cp = easeIO(prog(t, d0 + 0.6, CLICK - 0.15));
+  let [cx, cy] = [lerp(from[0], target[0], cp), lerp(from[1], target[1], cp)];
+  const lp = easeIO(prog(t, CLICK + 0.5, CLICK + 1.4));
+  cx = lerp(cx, away[0], lp); cy = lerp(cy, away[1], lp);
+  const press = t > CLICK && t < CLICK + 0.15 ? 0.85 : 1;
+  const cursor = $('#cursor');
+  cursor.style.left = cx + 'px'; cursor.style.top = cy + 'px';
+  cursor.style.transform = `scale(${press})`;
+  cursor.style.opacity = prog(t, d0 + 0.5, d0 + 0.8) * (1 - prog(t, CLICK + 1.2, CLICK + 1.4));
+  const rp = prog(t, CLICK, CLICK + 0.6);
+  const ripple = $('#ripple');
+  ripple.style.left = target[0] + 6 + 'px'; ripple.style.top = target[1] + 4 + 'px';
+  ripple.style.opacity = rp > 0 && rp < 1 ? 1 - rp : 0;
+  ripple.style.transform = `scale(${0.4 + rp})`;
+  $('#ext').style.background = t > CLICK - 0.4 && t < CLICK + 0.8 ? '#e4e2dc' : 'transparent';
+
+  // Player slides up after the click; the toolbar badge shows while reading.
+  const pp = ease(prog(t, CLICK + 0.3, CLICK + 0.9));
+  const player = $('#player');
+  player.style.opacity = pp;
+  player.style.transform = `translateX(-50%) translateY(${(1 - pp) * 40}px) scale(1.55)`;
+  $('#badge').style.opacity = t > starts[0][0] - 0.2 ? 1 : 0;
+
+  // Highlight: the paragraph being read gets a faint wash, the sentence full yellow.
+  let current = -1;
+  starts.forEach(([a, b], i) => { if (t >= a - 0.05 && t < (starts[i + 1]?.[0] ?? b + 0.6)) current = i; });
+  spans.forEach((s, i) => {
+    s.style.background = i === current ? 'var(--hl)' : 'transparent';
+    s.style.color = i === current ? '#111' : '';
+  });
+  document.querySelectorAll('.article p').forEach((p) => {
+    p.style.background = current >= 0 && p.contains(spans[current]) ? 'rgba(255, 224, 102, 0.22)' : 'transparent';
+  });
+  $('#pos').textContent = `${Math.max(current, 0) + 1} / 9`;
+
+  // Auto-scroll when the second paragraph starts.
+  const sc = easeIO(prog(t, starts[2][0] - 0.2, starts[2][0] + 0.7));
+  $('#article').style.transform = `translateY(${-sc * 300}px)`;
+
+  // Voices
+  const v0 = S.voices[0];
+  rise($('.voices-left h3'), t, v0 + 0.1);
+  ['#g0', '#g1', '#g2'].forEach((g, i) => rise($(g), t, v0 + 0.6 + i * 0.5, 30));
+  const pop = $('#popup');
+  const pp2 = ease(prog(t, v0 + 0.3, v0 + 1.1));
+  pop.style.opacity = pp2;
+  pop.style.transform = `translateX(${(1 - pp2) * 80}px)`;
+  // Pan down the popup to show voice settings.
+  const pan = easeIO(prog(t, v0 + 2.6, v0 + 4.6));
+  $('#popup-img').style.transform = `translateY(${-pan * 0}px)`;
+
+  // Features
+  const f0 = S.features[0];
+  rise($('.features h3'), t, f0 + 0.1);
+  ['#c0', '#c1', '#c2'].forEach((c, i) => rise($(c), t, f0 + 0.5 + i * 0.35, 50));
+
+  // Outro
+  const o0 = S.outro[0];
+  rise($('#outro .brand'), t, o0 + 0.1, 30);
+  rise($('#outro .sub'), t, o0 + 0.5);
+  rise($('#outro .cta'), t, o0 + 0.8);
+  document.querySelectorAll('#outro .logo rect[class]').forEach((r, i) => {
+    const base = [30, 56, 40, 20][i];
+    const h = base * (0.75 + 0.25 * Math.sin((t - o0) * 7 + i * 1.3));
+    r.setAttribute('height', h); r.setAttribute('y', 50 - h / 2);
+  });
+}
+window.render = render;
+window.STARTS = starts;
+const q = new URLSearchParams(location.search).get('t');
+render(q ? +q : 0);
+</script>
+</body></html>

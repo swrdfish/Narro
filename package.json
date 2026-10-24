@@ -29,7 +29,8 @@
     "watch": "node build.mjs --watch",
     "test": "node --test test/*.test.js",
     "site": "node scripts/build-site.mjs",
-    "site:preview": "node scripts/preview-site.mjs"
+    "site:preview": "node scripts/preview-site.mjs",
+    "video": "node scripts/build-video.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "puppeteer-core": "^23.11.1"
   }
 }
