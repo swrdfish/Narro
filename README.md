@@ -4,11 +4,13 @@
 
 # Narro
 
-**Read any web page aloud with natural AI voices, in the cloud or entirely in your browser.**
+**Read any web page aloud with on device AI voices. Supports Kindle online reader.**
 
-[Install](#install-from-source) · [Features](#features) · [Privacy](#privacy) · [Report an issue](https://github.com/swrdfish/Narro/issues)
+<a href="https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko"><img src="https://img.shields.io/badge/Add_to_Chrome-1a1917?style=for-the-badge&logo=googlechrome&logoColor=4fb56e" height="44" alt="Add to Chrome"></a>
 
-[![Tests](https://github.com/swrdfish/Narro/actions/workflows/test.yml/badge.svg)](https://github.com/swrdfish/Narro/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-4fb56e.svg)](LICENSE)
+[Features](#features) · [Privacy](#privacy) · [Report an issue](https://github.com/swrdfish/Narro/issues)
+
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/lhkhhmceefdlfikeoojjihjclmjhkjko?label=Chrome%20Web%20Store&color=4fb56e)](https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko) [![Tests](https://github.com/swrdfish/Narro/actions/workflows/test.yml/badge.svg)](https://github.com/swrdfish/Narro/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-4fb56e.svg)](LICENSE)
 
 </div>
 
@@ -54,9 +56,14 @@ with no account and no server. It also supports Kindle Online Reader.
 - **Kindle Cloud Reader:** reads book pages with on-device OCR and turns pages automatically ([details](#kindle-cloud-reader)).
 
 
-## Install from source
+## Install
 
-Narro isn't on the Chrome Web Store yet. To install it:
+Install Narro from the [Chrome Web Store](https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko), then click the Narro icon on any page,
+choose a voice engine and press **Read this page**.
+
+### Build from source
+
+To try the latest changes before they reach the store:
 
 ```sh
 git clone https://github.com/swrdfish/Narro.git
@@ -82,7 +89,7 @@ Keyboard shortcuts are shown in the popup and can be changed at `chrome://extens
 
 ## Kindle Cloud Reader
 
-Kindle Cloud Reader shows book pages as images rather than text, so on (`read.amazon.com`, `.co.uk`, `.in`, `.de` and more) Narro runs
+Kindle Cloud Reader shows book pages as images rather than text, so on `read.amazon.com`, `.co.uk`, `.in`, `.de`, etc. Narro runs
 **OCR (text recognition) on the page you can see**, entirely on your computer, using Tesseract. It then reads the recognized text with your chosen voice.
 
 - At the end of a page, Narro presses Kindle's **Next page** button and keeps reading. It can turn the page slightly early, while the page's last sentence is still playing, so there's no pause. Both behaviours can be switched off in the settings.
