@@ -6,6 +6,7 @@ import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
 import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
 import { PAGE_SHORTCUTS } from './shortcuts.js';
+import { levelsAt } from './levels.js';
 
 // Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
 const EARLY_TURN_LEAD = 1.5;
@@ -187,6 +188,7 @@ function main() {
     const end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
     state.chunk = { start: i, end };
     const seq = ++state.seq;
+    ui.newClip();
     setStatus('loading');
     highlight(i);
     const prefetch = chunksFrom(state.sentences, end + 1, 2);
@@ -582,7 +584,11 @@ function main() {
         if (state.status === 'playing') turnEarly();
         break;
       case 'progress':
+        ui.clipTime(msg.time);
         followProgress(msg.time, msg.duration);
+        break;
+      case 'levels':
+        ui.setLevels(msg.levels);
         break;
       case 'ended': {
         if (state.status === 'paused') break;
@@ -699,8 +705,11 @@ function createPlayer(h) {
       .rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
       .pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 6px; width: 72px; text-align: center; white-space: nowrap; }
       .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+      /* Voice visualizer: bars follow the loudness of the clip in a few frequency bands. */
+      .viz { display: flex; align-items: center; justify-content: center; gap: 2px; width: 24px; height: 32px; margin-left: 2px; }
+      .viz i { width: 3px; height: 18px; border-radius: 2px; background: #4fb56e; transform: scaleY(.17); transform-origin: center; }
       /* Fixed size so status changes never resize (and re-center) the bar. */
-      .info { width: 240px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.3; transition: opacity .14s ease; }
+      .info { width: 214px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.3; transition: opacity .14s ease; }
       .info .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
       .info.fading { opacity: 0; }
       .info.placeholder { opacity: .75; }
@@ -757,6 +766,7 @@ function createPlayer(h) {
       <span class="rate"></span>
       <button class="small faster" title="Faster"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       <span class="sep"></span>
+      <span class="viz" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
       <span class="info"><span class="text"></span></span>
       <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
       <button class="settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
@@ -985,8 +995,55 @@ function createPlayer(h) {
     fadeTimer = setTimeout(apply, 140);
   }
 
+  // --- Voice visualizer ---
+  // The offscreen document sends each clip's levels; the clip's time comes from its progress events
+  // and runs on between them at the playback rate. Voices with no audio to measure (system voices),
+  // or a clip whose levels haven't arrived, get a gentle made-up movement while playing.
+  const bars = [...root.querySelectorAll('.viz i')];
+  const REST = 0.17;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)'); // absent in test DOMs
+  let clip = { levels: null, time: 0, at: null };
+  let shown = bars.map(() => REST);
+  let vizFrame = 0;
+
+  function clipNow(now) {
+    return clip.time + (clip.at === null ? 0 : ((now - clip.at) / 1000) * (h.getState().rate || 1));
+  }
+
+  function drawViz(now) {
+    vizFrame = 0;
+    const playing = h.getState().status === 'playing';
+    // Hold the clock while not playing, and restart it from where it stopped.
+    if (!playing && clip.at !== null) [clip.time, clip.at] = [clipNow(now), null];
+    if (playing && clip.at === null) clip.at = now;
+    let targets = bars.map(() => REST);
+    if (playing && reducedMotion?.matches) targets = [0.45, 0.7, 0.55, 0.4, 0.3];
+    else if (playing && clip.levels) targets = levelsAt(clip.levels, clipNow(now)).map((v) => REST + v * (1 - REST));
+    else if (playing) targets = bars.map((_, i) => REST + 0.3 * (1 + Math.sin(now / 180 + i * 1.3)) * (0.6 + 0.4 * Math.sin(now / 530 + i)));
+    // Rise quickly, fall back a little slower, like a level meter.
+    shown = shown.map((v, i) => v + (targets[i] - v) * (targets[i] > v ? 0.6 : 0.25));
+    bars.forEach((bar, i) => { bar.style.transform = `scaleY(${shown[i].toFixed(3)})`; });
+    const settled = shown.every((v, i) => Math.abs(v - targets[i]) < 0.005);
+    if (ui.visible && (playing || !settled)) vizFrame = requestAnimationFrame(drawViz);
+  }
+
+  function animateViz() {
+    if (!vizFrame && ui.visible) vizFrame = requestAnimationFrame(drawViz);
+  }
+
   const ui = {
     visible: false,
+    newClip() {
+      clip = { levels: null, time: 0, at: null };
+    },
+    setLevels(levels) {
+      clip.levels = levels;
+      animateViz();
+    },
+    clipTime(time) {
+      clip.time = time;
+      if (clip.at !== null) clip.at = performance.now();
+    },
     show() {
       if (!host.isConnected) document.documentElement.append(host);
       ui.visible = true;
@@ -995,6 +1052,8 @@ function createPlayer(h) {
     },
     hide() {
       closeDetails();
+      cancelAnimationFrame(vizFrame);
+      vizFrame = 0;
       host.remove();
       ui.visible = false;
     },
@@ -1003,6 +1062,7 @@ function createPlayer(h) {
     },
     render() {
       const s = h.getState();
+      animateViz(); // starts with playback, settles back down after it
       // Show the spinner only if loading lasts; between prefetched sentences it would just flash.
       const loading = s.preparing || s.status === 'loading';
       if (!loading) {

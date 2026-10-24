@@ -1,6 +1,7 @@
 // Offscreen document: synthesizes and plays audio. Driven by the background service worker.
 import { synthesize, cacheKey } from './engines.js';
 import { recognizeKindle, cancelKindle } from './kindle-ocr.js';
+import { LEVEL_BANDS, bandLevels } from './levels.js';
 
 const CACHE_LIMIT = 12;
 // Seconds of audio (at the current speed) left when 'nearly-ended' is sent, so the reader can
@@ -26,6 +27,36 @@ function getAudio(settings, text, onStatus) {
     p.catch(() => cache.delete(key));
     cache.set(key, p);
     while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
+  }
+  return p;
+}
+
+// The visualizer's levels for a clip: decoded and band-pass filtered offline, so the audio element
+// plays as before. Kept per clip, since cached clips are played again (previous sentence, resume).
+const levelCache = new WeakMap(); // Blob -> Promise<levels>
+function clipLevels(blob) {
+  let p = levelCache.get(blob);
+  if (!p) {
+    p = (async () => {
+      const decoded = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await blob.arrayBuffer());
+      const context = new OfflineAudioContext(LEVEL_BANDS.length, decoded.length, decoded.sampleRate);
+      const source = context.createBufferSource();
+      source.buffer = decoded;
+      const merger = context.createChannelMerger(LEVEL_BANDS.length);
+      LEVEL_BANDS.forEach((frequency, band) => {
+        const filter = context.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = Math.min(frequency, decoded.sampleRate / 2 - 100);
+        filter.Q.value = 1.2;
+        source.connect(filter).connect(merger, 0, band);
+      });
+      merger.connect(context.destination);
+      source.start();
+      const rendered = await context.startRendering();
+      return bandLevels(LEVEL_BANDS.map((_, band) => rendered.getChannelData(band)), rendered.sampleRate);
+    })();
+    p.catch(() => levelCache.delete(blob));
+    levelCache.set(blob, p);
   }
   return p;
 }
@@ -57,6 +88,8 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
     })();
     token.url = URL.createObjectURL(blob);
     audio.src = token.url;
+    // Usually ready before the clip starts; if not, the bars join in when it is.
+    clipLevels(blob).then((levels) => current === token && emit(tabId, seq, 'levels', { levels }), () => {});
     audio.playbackRate = rate;
     audio.onended = () => current === token && emit(tabId, seq, 'ended');
     audio.onerror = () => current === token && emit(tabId, seq, 'error', { message: 'Audio playback failed.' });
