@@ -674,7 +674,10 @@ function createPlayer(h) {
       button.play:hover { filter: brightness(1.08); background: #4fb56e; }
       button.small { width: 24px; height: 24px; }
       button.small svg { width: 14px; height: 14px; }
-      button.pick.active { background: var(--accent); color: #fff; }
+      /* Choosing where to start is the main thing to do besides play, so it shares the play button's green. */
+      button.pick { background: #4fb56e; color: #1a1917; }
+      button.pick:hover { filter: brightness(1.08); background: #4fb56e; }
+      button.pick.active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px #4fb56e; }
       svg { width: 18px; height: 18px; fill: currentColor; }
       .rate { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
       .pos { color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 6px; width: 72px; text-align: center; white-space: nowrap; }
