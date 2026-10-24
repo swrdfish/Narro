@@ -620,6 +620,8 @@ function main() {
     onSlower: () => setRate(state.rate - 0.1),
     onFaster: () => setRate(state.rate + 0.1),
     onSettings: () => send({ type: 'open-options' }),
+    // Try again from the sentence that failed (a Kindle page is recognised again).
+    onRetry: () => (state.sentences.length ? play(state.idx) : start()),
     getState: () => state,
   });
 }
@@ -708,11 +710,13 @@ function createPlayer(h) {
         background: var(--hover); font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
         white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
       }
-      .details-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+      .details-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
       .details button.text-button {
         width: auto; height: auto; display: inline-block; padding: 4px 12px; border-radius: 8px;
         border: 1px solid var(--border); font-weight: 600; font-size: 12px;
       }
+      .details button.text-button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+      .details button.text-button.primary:hover { filter: brightness(1.08); }
       .details button.icon { width: 26px; height: 26px; }
       .details button.icon svg { width: 14px; height: 14px; }
       .grip { display: grid; place-items: center; width: 14px; height: 32px; margin-right: -2px; color: var(--muted); cursor: grab; }
@@ -745,7 +749,7 @@ function createPlayer(h) {
       </div>
       <p class="details-message"></p>
       <details class="details-raw" hidden><summary>Server response</summary><pre></pre></details>
-      <div class="details-actions"><button class="text-button details-copy">Copy</button></div>
+      <div class="details-actions"><button class="text-button details-copy">Copy</button><button class="text-button primary details-retry">Retry</button></div>
     </div>`;
 
   const $ = (sel) => root.querySelector(sel);
@@ -911,6 +915,11 @@ function createPlayer(h) {
     } catch {
       $('.details-copy').textContent = 'Copy failed';
     }
+  });
+  $('.details-retry').addEventListener('click', () => {
+    closeDetails();
+    $('.play').focus();
+    h.onRetry();
   });
   document.addEventListener('pointerdown', (e) => {
     if (detailsOpen && !e.composedPath().includes(host)) closeDetails();
