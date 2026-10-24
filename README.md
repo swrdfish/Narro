@@ -39,11 +39,31 @@ with no account and no server. It also supports Kindle Online Reader.
 | | ElevenLabs | Your own voices, listed with your key |
 | | Google Gemini | Gemini TTS voices |
 | | [OpenRouter](https://openrouter.ai) | One key for speech models from many providers |
-| **In your browser** | Kokoro-82M | 8 voices in English, ~90 MB download |
-| | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean, ~260 MB download |
-| | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages, ~60 MB download each |
+| **In your browser** | Kokoro-82M | 8 voices in English |
+| | Supertonic 2 | 10 voices in English, Spanish, French, Portuguese and Korean |
+| | Piper | Popular [piper-voices](https://huggingface.co/rhasspy/piper-voices) in several languages |
 | **Other** | Local server | Any OpenAI-compatible `/v1/audio/speech` server, e.g. [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) |
 | | System voices | Your computer's built-in voices |
+
+### What the in-browser voices need
+
+Each model downloads once and then works offline. Memory is what Narro uses in total at its peak
+while reading, as Chrome's Task Manager shows it.
+
+| Model | Download | Memory while reading |
+|---|---|---|
+| Kokoro-82M on CPU | 92.4 MB | about 700 MB |
+| Kokoro-82M on WebGPU | 325.5 MB | about 1050 MB |
+| Supertonic 2 on CPU | 262.9 MB | about 950 MB |
+| Supertonic 2 on WebGPU | 262.9 MB | about 800 MB |
+| Piper, medium-quality voice | 63.2–63.5 MB | about 800 MB |
+| Piper, high-quality voice | 113.9–120.8 MB | about 800 MB |
+
+Download sizes are the model files on Hugging Face. Memory was measured in Chromium on an M1 Pro,
+reading a 12-paragraph article with the model already downloaded, and rounded to 50 MB; expect some
+variation between machines. Most of it is the speech runtime the three engines share, which is why
+a small Piper voice needs about as much as Kokoro. Kokoro and Supertonic use WebGPU when **Device** is
+**Auto** and the browser supports it; the popup shows the figures for your setup.
 
 ### Reading
 
@@ -108,6 +128,14 @@ The **Model** dropdowns for OpenAI, ElevenLabs and Gemini, and the **Piper** voi
 
 ```json
 { "openai": { "tts-1": "tts-1 · fastest" }, "piper": { "en_US-lessac-medium": "Lessac · US English, female" } }
+```
+
+The `local` section holds the download size and memory of each in-browser model, shown in the popup:
+per device (`wasm` for CPU, `webgpu`) for Kokoro and Supertonic, and per voice for Piper. A Piper
+voice added to the list needs an entry there too.
+
+```json
+{ "local": { "piper": { "en_US-lessac-medium": { "downloadMB": 63.2, "memoryMB": 800 } } } }
 ```
 
 - To make a permanent change, edit `src/models.json` and run `npm run build`.
