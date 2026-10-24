@@ -10,6 +10,7 @@ const port = Number(process.env.PORT) || 8000;
 const types = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json',
+  '.jpg': 'image/jpeg', '.mp4': 'video/mp4', '.vtt': 'text/vtt; charset=utf-8',
 };
 
 const build = () => execFileSync(process.execPath, ['scripts/build-site.mjs'], { stdio: 'inherit' });
@@ -36,6 +37,16 @@ createServer((req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain' });
     return res.end('Not found');
   }
-  res.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
-  res.end(readFileSync(file));
+  const headers = { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store', 'accept-ranges': 'bytes' };
+  const body = readFileSync(file);
+  // Safari only plays a video when the server answers byte-range requests, as GitHub Pages does.
+  const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  if (range) {
+    const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+    res.writeHead(206, { ...headers, 'content-range': `bytes ${start}-${end}/${body.length}` });
+    return res.end(body.subarray(start, end + 1));
+  }
+  res.writeHead(200, headers);
+  res.end(body);
 }).listen(port, () => console.log(`Previewing the landing page at http://localhost:${port} (rebuilds on changes; Ctrl+C to stop)`));

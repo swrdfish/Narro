@@ -6,7 +6,12 @@
 
 **Read any web page aloud with on device AI voices. Supports Kindle online reader.**
 
-<a href="https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko"><img src="https://img.shields.io/badge/Add_to_Chrome-1a1917?style=for-the-badge&logo=googlechrome&logoColor=4fb56e" height="44" alt="Add to Chrome"></a>
+<a href="https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/add-to-chrome-dark.png">
+    <img src="docs/add-to-chrome-light.png" width="151" height="34" alt="Add to Chrome">
+  </picture>
+</a>
 
 [Features](#features) · [Privacy](#privacy) · [Report an issue](https://github.com/swrdfish/Narro/issues)
 
@@ -17,6 +22,12 @@
 Narro is a Chrome extension that reads the page you're on and highlights each sentence as it's
 spoken. Use a cloud voice with your own API key, or a voice that runs entirely in your browser,
 with no account and no server. It also supports Kindle Online Reader.
+
+<p align="center">
+  <a href="https://swrdfish.github.io/Narro/"><img src="docs/demo-readme.jpg" width="720" alt="Watch the demo: Narro reads a short story aloud and highlights each sentence"></a>
+  <br>
+  <sub>Watch a demo</sub>
+</p>
 
 <table>
   <tr>

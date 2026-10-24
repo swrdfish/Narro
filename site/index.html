@@ -49,7 +49,7 @@
     <section class="hero">
       <div class="hero-copy">
         <h1>Hear any page, read&nbsp;aloud.</h1>
-        <p class="lede">Narro is a Chrome extension that reads the page you're on in a natural AI voice, highlighting each sentence as it goes. Use a cloud voice with your own key, or one that runs entirely in your browser.</p>
+        <p class="lede">Narro is a Chrome extension that reads the page you're on in a natural AI voice, highlighting each sentence as it goes. It can use a cloud voice with your own key, or a local model that runs entirely in your browser. Narro also supports Kindle Reader.</p>
         <div class="actions">
           <a class="button primary" href="https://chromewebstore.google.com/detail/lhkhhmceefdlfikeoojjihjclmjhkjko"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg>Add to Chrome</a>
           <a class="button" href="https://github.com/swrdfish/Narro">View on GitHub</a>
@@ -57,30 +57,13 @@
         <p class="fine">Free and open source · MIT licence</p>
       </div>
 
-      <!-- A small working imitation of Narro reading a page. -->
-      <figure class="demo" aria-label="Demo: Narro highlighting each sentence as it reads an article">
-        <div class="window">
-          <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span></div>
-          <article class="demo-page">
-            <h2>The Mill on the River</h2>
-            <p class="demo-meta">A short story · 4 min read</p>
-            <p class="demo-para"><span class="s">The river bent twice before it reached the old mill.</span> <span class="s">Nobody in the village remembered who had built it.</span></p>
-            <p class="demo-para"><span class="s">Each spring the water rose and covered the lower steps.</span> <span class="s">Children dared each other to touch the rusted wheel.</span></p>
-            <p class="demo-para"><span class="s">One summer a stranger arrived with a box of tools.</span> <span class="s">He said he could make the wheel turn again by autumn.</span></p>
-          </article>
-          <div class="player" aria-hidden="true">
-            <span class="grip">⠿</span>
-            <svg class="ctl" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-            <button class="play" type="button" tabindex="-1">
-              <svg class="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-              <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-            <svg class="ctl" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
-            <span class="count"><span class="now">1</span> / 6</span>
-            <span class="bars"><i></i><i></i><i></i><i></i></span>
-            <span class="voice">Kokoro · Heart</span>
-          </div>
-        </div>
+      <figure class="demo">
+        <video controls preload="metadata" playsinline width="1920" height="1080" poster="demo-poster.jpg"
+               aria-label="Demo video: Narro reads a short story aloud and highlights each sentence">
+          <source src="demo.mp4" type="video/mp4">
+          <track kind="captions" src="demo.vtt" srclang="en" label="English">
+          <a href="demo.mp4">Download the demo video</a>
+        </video>
       </figure>
     </section>
 
@@ -197,7 +180,6 @@ npm run build</code></pre>
     </nav>
   </footer>
 
-  <script src="demo.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/github-buttons@2.33.1/dist/buttons.min.js" async defer></script>
 </body>
 </html>

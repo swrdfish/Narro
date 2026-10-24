@@ -11,7 +11,11 @@ This narrates the first sentences of the story with Kokoro (Heart voice), synthe
 bed for the parts without narration, captures each frame in headless Chrome and encodes:
 
 - `out/narro-demo-1080p.mp4`: for YouTube; the Chrome Web Store listing takes a YouTube link.
-- `out/narro-demo-readme-720p.mp4`: for the README; drag it into the README editor on github.com.
+- `out/narro-demo-readme-720p.mp4`: a smaller copy, e.g. to drag into a GitHub issue or release.
+
+It also updates what the README and landing page use, in `docs/`: `demo.mp4` (the 1080p video),
+`demo.vtt` (captions), `demo-poster.jpg` (the landing page poster) and `demo-readme.jpg` (the
+README's poster, with a play button, linking to the video on the landing page).
 
 Needs Google Chrome (set `CHROME` to use another path) and `ffmpeg`. Takes about two minutes.
 

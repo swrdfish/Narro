@@ -3,7 +3,6 @@
   --ink: #1a1917;
   --green: #4fb56e;
   --light: #f7f6f2;
-  --highlight: #ffe066;
   --font-body: Lato, system-ui, -apple-system, sans-serif;
   --font-head: Montserrat, system-ui, -apple-system, sans-serif;
 
@@ -15,7 +14,6 @@
   --button: var(--ink);
   --button-fg: var(--light);
   --button-icon: var(--green);
-  --demo-bg: #fbfaf8;
   --shadow: 0 24px 60px rgba(26, 25, 23, 0.16);
   color-scheme: light dark;
 }
@@ -30,7 +28,6 @@
     --button: var(--light);
     --button-fg: var(--ink);
     --button-icon: #2e8a4c; /* the logo green, darkened to show on the light button */
-    --demo-bg: #fbfaf8; /* the demo page stays a light web page */
     --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
   }
 }
@@ -105,47 +102,11 @@ h1 {
 
 /* --- The demo --- */
 
-.demo { margin: 0; position: relative; }
-.window {
-  position: relative; overflow: hidden; border-radius: 16px; background: var(--demo-bg); color: #1d1d1f;
-  border: 1px solid rgba(26, 25, 23, 0.1); box-shadow: var(--shadow);
+.demo { margin: 0; }
+.demo video {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 9;
+  border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); background: var(--light);
 }
-.window-bar { display: flex; gap: 6px; padding: 12px 14px; border-bottom: 1px solid rgba(26, 25, 23, 0.07); }
-.window-bar span { width: 10px; height: 10px; border-radius: 50%; background: #dcd8cf; }
-.demo-page { padding: 26px 34px 96px; font: 17px/1.7 var(--font-body); }
-.demo-page h2 { margin: 0; font: 700 24px/1.2 var(--font-head); letter-spacing: -0.015em; }
-.demo-meta { margin: 4px 0 18px; font: 13px var(--font-body); color: #6b6862; }
-.demo-para { margin: 0 0 14px; padding: 2px 0; border-radius: 4px; transition: background-color .3s; }
-.demo-para.reading { background: rgba(255, 224, 102, 0.22); }
-.s { border-radius: 3px; transition: background-color .25s; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-.s.speaking { background: var(--highlight); }
-
-.player {
-  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 10px; white-space: nowrap;
-  background: #fff; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 999px;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16); font: 13px var(--font-body); color: #1d1d1f;
-}
-.grip { color: #a8a49c; font-size: 12px; }
-.ctl { width: 16px; height: 16px; fill: currentColor; }
-.play {
-  display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%;
-  background: var(--green); color: var(--ink); cursor: default;
-}
-.play svg { width: 16px; height: 16px; fill: currentColor; }
-.play .icon-play, .demo.paused .play .icon-pause { display: none; }
-.demo.paused .play .icon-play { display: block; }
-.count { color: #6b6862; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
-.voice { color: #8a867f; }
-
-/* The logo's waveform, moving while the demo plays. */
-.bars { display: inline-flex; align-items: center; gap: 2px; height: 16px; }
-.bars i { width: 3px; height: 40%; border-radius: 2px; background: var(--green); animation: bar 0.8s ease-in-out infinite alternate; }
-.bars i:nth-child(2) { animation-delay: -0.2s; }
-.bars i:nth-child(3) { animation-delay: -0.4s; }
-.bars i:nth-child(4) { animation-delay: -0.6s; }
-.demo.paused .bars i { animation-play-state: paused; }
-@keyframes bar { from { height: 25%; } to { height: 100%; } }
 
 /* --- Sections --- */
 
@@ -229,12 +190,6 @@ h1 {
   .hero { gap: 32px; padding: 20px 0 8px; }
   .lede { font-size: 17px; margin-bottom: 22px; }
   .button { min-height: 48px; padding: 0 18px; }
-  .demo-page { padding: 18px 18px 84px; font-size: 15px; line-height: 1.6; }
-  .demo-page h2 { font-size: 20px; }
-  .demo-meta { margin-bottom: 12px; }
-  .demo-para { margin-bottom: 10px; }
-  .player { bottom: 14px; }
-  .player .voice, .player .grip { display: none; }
 
   .section { padding-top: 56px; }
   .section-lede { margin-bottom: 22px; }
@@ -267,6 +222,4 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .bars i { animation: none; height: 70%; }
-  .s, .demo-para { transition: none; }
 }

@@ -1,10 +1,11 @@
 // Renders the store / README demo video from store-assets/video/promo.html:
 // narrates the demo sentences with Kokoro, captures every frame in Chrome, then muxes with ffmpeg.
-// Needs Google Chrome (or $CHROME) and ffmpeg on PATH. Output goes to store-assets/video/out/.
+// Needs Google Chrome (or $CHROME) and ffmpeg on PATH. Output goes to store-assets/video/out/;
+// the copies the README and landing page use go to docs/.
 import { KokoroTTS } from 'kokoro-js';
 import puppeteer from 'puppeteer-core';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const dir = resolve('store-assets/video');
@@ -148,7 +149,24 @@ for (let i = 0; i < frames; i++) {
   await page.evaluate((t) => window.render(t), i / FPS);
   await page.screenshot({ path: `${work}/frames/f${String(i).padStart(5, '0')}.png` });
 }
+// Posters, mid-way through the second sentence: a plain one for the landing page's <video>, and
+// one with a play button for the README, which links to the landing page (GitHub can't play a
+// video from the repository inline).
+await page.evaluate((t) => window.render(t), starts[1][0] + 1.2);
+await page.screenshot({ path: 'docs/demo-poster.jpg', type: 'jpeg', quality: 85 });
+await page.evaluate(() => {
+  const play = document.createElement('div');
+  play.style.cssText = 'position:fixed;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;'
+    + 'background:rgba(26,25,23,.82);box-shadow:0 12px 40px rgba(0,0,0,.3);display:grid;place-items:center;z-index:99';
+  play.innerHTML = '<svg viewBox="0 0 24 24" width="84" height="84" style="margin-left:10px"><path d="M8 5v14l11-7z" fill="#4fb56e"/></svg>';
+  document.body.append(play);
+});
+await page.screenshot({ path: 'docs/demo-readme.jpg', type: 'jpeg', quality: 85 });
 await browser.close();
+
+// Captions for the narration, for the landing page's <video>.
+const stamp = (s) => new Date(s * 1000).toISOString().slice(11, 23);
+writeFileSync('docs/demo.vtt', `WEBVTT\n\n${starts.map(([a, b], i) => `${stamp(a)} --> ${stamp(b)}\n${sentences[i]}\n`).join('\n')}`);
 
 const ffmpeg = (...args) => execFileSync('ffmpeg', ['-loglevel', 'error', '-y', ...args], { stdio: 'inherit' });
 writeMusic(`${work}/music.wav`, duration, starts[0][0], starts.at(-1)[1], click);
@@ -167,14 +185,20 @@ ffmpeg(
 );
 ffmpeg(
   '-framerate', String(FPS), '-i', `${work}/frames/f%05d.png`, '-i', `${work}/narration.wav`,
-  '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k',
+  // High profile, level 4.1: plays in Safari and on older iPhones, not just in Chrome.
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p',
+  '-c:a', 'aac', '-b:a', '160k',
   '-shortest', '-movflags', '+faststart', `${out}/narro-demo-1080p.mp4`,
 );
 // Smaller copy for the README (GitHub caps video uploads at 10 MB on free plans).
 ffmpeg(
   '-i', `${out}/narro-demo-1080p.mp4`, '-vf', 'scale=1280:-2',
-  '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k',
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p',
+  '-c:a', 'aac', '-b:a', '128k',
   '-movflags', '+faststart', `${out}/narro-demo-readme-720p.mp4`,
 );
+// The landing page serves the 1080p video from docs/ (copied in by scripts/build-site.mjs).
+cpSync(`${out}/narro-demo-1080p.mp4`, 'docs/demo.mp4');
 rmSync(work, { recursive: true, force: true });
-console.log(`Wrote ${out}/narro-demo-1080p.mp4 and narro-demo-readme-720p.mp4 (${duration.toFixed(1)}s)`);
+console.log(`Wrote ${out}/narro-demo-1080p.mp4 and narro-demo-readme-720p.mp4 (${duration.toFixed(1)}s),`
+  + ' and docs/demo.mp4, demo.vtt, demo-poster.jpg, demo-readme.jpg');
