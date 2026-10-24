@@ -107,18 +107,7 @@ npm run build
 2. Choose **Load unpacked** and select the `dist/` folder.
 3. Click the Narro icon, choose a voice engine, then **Read this page**.
 
-While Narro's player is showing on a page, these keys control it (they're ignored while you type in
-a text field, and listed in the popup):
-
-| | macOS | Windows / Linux |
-|---|---|---|
-| Play / pause | ⌥⇧R | Alt+Shift+R |
-| Previous / next sentence | ⌥⇧← / ⌥⇧→ | Alt+Shift+← / Alt+Shift+→ |
-| Stop | ⌥⇧S | Alt+Shift+S |
-| Jump to a sentence | ⌥-click | Alt+click |
-
-Narro sets no browser-wide shortcuts, so it never takes keys from other apps or pages. To start or
-pause reading from any page with a key, set one at `chrome://extensions/shortcuts`.
+Keyboard shortcuts are shown in the popup and can be changed at `chrome://extensions/shortcuts`.
 
 
 ## Privacy
