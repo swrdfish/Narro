@@ -107,9 +107,12 @@ async function handleFromTab(msg, tabId) {
         systemSpeak(tabId, msg.seq, msg.text, settings);
       } else {
         chrome.tts.stop();
-        await toOffscreen({ cmd: 'speak', tabId, seq: msg.seq, text: msg.text, prefetch: msg.prefetch, settings });
+        await toOffscreen({ cmd: 'speak', tabId, seq: msg.seq, text: msg.text, prefetch: msg.prefetch, startAt: msg.startAt, settings });
       }
       return { ok: true };
+    case 'cached':
+      if (system || !Array.isArray(msg.texts)) return { index: -1 };
+      return (await toOffscreen({ cmd: 'cached', texts: msg.texts, settings }, { create: false })) ?? { index: -1 };
     case 'prefetch':
       if (!system && Array.isArray(msg.texts)) await toOffscreen({ cmd: 'prefetch', texts: msg.texts.slice(0, 3), settings });
       return { ok: true };

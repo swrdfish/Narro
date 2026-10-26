@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { JSDOM } from 'jsdom';
-import { chunkEnd, chunkText, sentenceAtFraction, startsNewBlock, CHUNK_MAX_SENTENCES } from '../src/chunks.js';
+import { chunkBounds, chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock, CHUNK_MAX_SENTENCES } from '../src/chunks.js';
 
 const s = (...texts) => texts.map((text) => ({ text }));
 
@@ -25,6 +25,16 @@ test('the first chunk after starting or jumping is one sentence; single mode is 
   assert.equal(chunkEnd(sentences, 1, { single: true }), 1);
 });
 
+test('a sentence is always in the same chunk, wherever reading started', () => {
+  const sentences = s('One.', 'Two.', 'Three.', 'Four.', 'Five.', 'Six.', 'Seven.');
+  assert.deepEqual(chunkBounds(sentences, 2), [0, 3]);
+  assert.deepEqual(chunkBounds(sentences, 5), [4, 6]);
+  // After a jump to Two (spoken alone), the next chunk ends where the regular one does, so the
+  // clips from then on are the cached ones.
+  assert.equal(chunkEnd(sentences, 2), 3);
+  assert.equal(chunkEnd(sentences, 4), 6);
+});
+
 test('progress through a chunk maps to the sentence being spoken, by character share', () => {
   const sentences = s('Short.', 'A much longer second sentence here.', 'End.');
   assert.equal(sentenceAtFraction(sentences, 0, 2, 0), 0);
@@ -39,7 +49,8 @@ test('progress through a chunk maps to the sentence being spoken, by character s
 const bundle = (await build({ entryPoints: ['src/content.js'], bundle: true, write: false, format: 'iife', platform: 'browser', target: 'chrome116' })).outputFiles[0].text;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function fixture(engine = 'openai') {
+// `cached`: clip texts the offscreen document reports as cached.
+function fixture(engine = 'openai', { cached = [] } = {}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body><p>Boats left early. Gulls stayed behind. Wind rose by noon. Rain came later.</p></body></html>', {
     url: 'https://example.com/article', runScripts: 'outside-only', pretendToBeVisual: true,
   });
@@ -56,7 +67,10 @@ function fixture(engine = 'openai') {
   window.chrome = {
     runtime: {
       onMessage: { addListener: (listener) => listeners.add(listener), removeListener: (listener) => listeners.delete(listener) },
-      sendMessage: async (message) => { messages.push(message); return { ok: true }; },
+      sendMessage: async (message) => {
+        messages.push(message);
+        return message.type === 'cached' ? { index: message.texts.findIndex((text) => cached.includes(text)) } : { ok: true };
+      },
     },
     storage: { local: { get: async () => ({ settings: { engine } }), set: async () => {} }, onChanged: { addListener() {} } },
   };
@@ -97,6 +111,39 @@ test('OpenAI: one sentence to start, then the rest in one request, with the high
     context.message({ type: 'control', action: 'prev' });
     await wait(20);
     assert.equal(context.speaks().at(-1).text, 'Wind rose by noon.');
+  } finally {
+    context.message({ type: 'control', action: 'stop' });
+    context.dom.window.close();
+  }
+});
+
+test('going back into a cached clip plays it from that sentence instead of synthesizing again', async () => {
+  const rest = 'Gulls stayed behind. Wind rose by noon. Rain came later.';
+  const context = fixture('openai', { cached: [rest] });
+  try {
+    context.message({ type: 'control', action: 'toggle' });
+    await wait(50);
+    context.message({ type: 'tts-event', event: 'ended', seq: context.speaks().at(-1).seq });
+    await wait(20);
+    const chunk = context.speaks().at(-1);
+    context.message({ type: 'tts-event', event: 'started', seq: chunk.seq });
+    context.message({ type: 'tts-event', event: 'progress', seq: chunk.seq, time: 9.5, duration: 10 });
+
+    context.message({ type: 'control', action: 'prev' });
+    await wait(20);
+    const back = context.speaks().at(-1);
+    assert.equal(back.text, rest, 'the cached clip');
+    const sentences = s('Boats left early.', 'Gulls stayed behind.', 'Wind rose by noon.', 'Rain came later.');
+    assert.equal(back.startAt, sentenceEndFraction(sentences, 1, 3, 1), 'starts where Wind rose by noon. does');
+    assert.equal(context.highlighted(), 'Wind rose by noon.');
+
+    // Not cached: the sentence alone, for a quick start.
+    context.message({ type: 'control', action: 'prev' });
+    await wait(20);
+    context.message({ type: 'control', action: 'prev' });
+    await wait(20);
+    assert.equal(context.speaks().at(-1).text, 'Boats left early.');
+    assert.equal(context.speaks().at(-1).startAt, 0);
   } finally {
     context.message({ type: 'control', action: 'stop' });
     context.dom.window.close();

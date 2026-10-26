@@ -46,3 +46,24 @@ export function levelsAt(levels, time) {
   if (frame < 0 || (frame + 1) * bands > data.length) return new Array(bands).fill(0);
   return Array.from({ length: bands }, (_, band) => data[frame * bands + band] / 255);
 }
+
+/**
+ * The time within `window` seconds of `time` where all bands are quietest, so playback that starts
+ * partway into a clip begins in the pause between sentences rather than mid-word. Nearest wins a tie.
+ */
+export function quietestTime(levels, time, window = 0.4) {
+  const { fps, bands, data } = levels;
+  const frames = Math.floor(data.length / bands);
+  const centre = Math.round(time * fps);
+  let best = null;
+  let bestLevel = Infinity;
+  for (let offset = 0; offset <= Math.round(window * fps); offset++) {
+    for (const frame of offset ? [centre - offset, centre + offset] : [centre]) {
+      if (frame < 0 || frame >= frames) continue;
+      let level = 0;
+      for (let band = 0; band < bands; band++) level += data[frame * bands + band];
+      if (level < bestLevel) [best, bestLevel] = [frame, level];
+    }
+  }
+  return best === null ? time : best / fps;
+}

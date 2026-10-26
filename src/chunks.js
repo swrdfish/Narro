@@ -8,9 +8,29 @@ export const CHUNK_MAX_CHARS = 400;
  * Index of the last sentence in the chunk starting at `start`.
  * `first`: the first chunk after starting or jumping is one sentence, so speech begins quickly.
  * `single`: one sentence per request (engines that don't report playback progress).
+ * Otherwise the chunk ends where the regular chunk holding `start` ends (see chunkBounds), so the
+ * clips after a jump are the same as before it and can come from the cache.
  */
 export function chunkEnd(sentences, start, { first = false, single = false } = {}) {
   if (first || single) return start;
+  return chunkBounds(sentences, start)[1];
+}
+
+/**
+ * [start, end] of the regular chunk holding sentence `index`: chunks are grouped from the start of
+ * each block, so a sentence is always in the same one wherever reading started.
+ */
+export function chunkBounds(sentences, index) {
+  let start = index;
+  while (start > 0 && !startsNewBlock(sentences, start)) start--;
+  for (;;) {
+    const end = greedyEnd(sentences, start);
+    if (end >= index) return [start, end];
+    start = end + 1;
+  }
+}
+
+function greedyEnd(sentences, start) {
   let end = start;
   let chars = sentences[start].text.length;
   while (

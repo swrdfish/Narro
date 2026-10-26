@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bandLevels, levelsAt } from '../src/levels.js';
+import { bandLevels, levelsAt, quietestTime } from '../src/levels.js';
 
 test('levels follow each band loudness per frame, scaled to the loudest', () => {
   const rate = 300; // 10 samples per frame at 30 fps
@@ -29,4 +29,12 @@ test('no levels outside the clip', () => {
   const levels = bandLevels([new Float32Array(30).fill(0.1)], 300);
   assert.deepEqual(levelsAt(levels, 5), [0]);
   assert.deepEqual(levelsAt(levels, -1), [0]);
+});
+
+test('a start time partway into a clip moves to the nearest pause', () => {
+  // 30 frames a second, two bands: loud, a pause at frames 10-11, loud again.
+  const data = Array.from({ length: 30 }, (_, frame) => (frame === 10 || frame === 11 ? [5, 5] : [200, 180])).flat();
+  const levels = { fps: 30, bands: 2, data };
+  assert.equal(quietestTime(levels, 13 / 30), 11 / 30, 'the nearer quiet frame');
+  assert.equal(quietestTime(levels, 0.95, 0.1), Math.round(0.95 * 30) / 30, 'no pause in reach: stays put');
 });

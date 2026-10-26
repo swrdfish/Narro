@@ -3,13 +3,16 @@
 import { buildSentences, findContentRoot, sentenceAt } from './text.js';
 import { getSettings, saveSettings, ENGINES, KITTEN_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES } from './settings.js';
 import { createKindleReader, isKindleUrl, visualSentenceAt } from './kindle.js';
-import { chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
+import { chunkBounds, chunkEnd, chunkText, sentenceAtFraction, sentenceEndFraction, startsNewBlock } from './chunks.js';
 import { pageKey, loadPosition, savePosition, clearPosition, findPosition } from './positions.js';
 import { PAGE_SHORTCUTS } from './shortcuts.js';
 import { levelsAt } from './levels.js';
 
 // Seconds of the second-to-last sentence left when a Kindle page is turned early (as in offscreen.js).
 const EARLY_TURN_LEAD = 1.5;
+// Clips synthesized ahead of the one playing (up to 16 sentences, usually a minute or more), so a
+// slow or briefly lost connection doesn't stop the reading.
+const PREFETCH_CHUNKS = 4;
 
 if (!window.__aiReader) {
   window.__aiReader = true;
@@ -185,15 +188,34 @@ function main() {
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
     rememberPosition();
-    const end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
-    state.chunk = { start: i, end };
+    let start = i;
+    let end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
+    state.chunk = { start, end };
     const seq = ++state.seq;
     ui.newClip();
     setStatus('loading');
     highlight(i);
-    const prefetch = chunksFrom(state.sentences, end + 1, 2);
-    const res = await send({ type: 'speak', seq, text: chunkText(state.sentences, i, end), prefetch });
+    if (first && !singleSentence()) {
+      // Jumping into a clip that's still cached (going back, say): play it from this sentence.
+      const clip = await cachedClip(i);
+      if (seq !== state.seq) return;
+      if (clip) [start, end] = clip;
+      state.chunk = { start, end };
+    }
+    const startAt = start < i ? sentenceEndFraction(state.sentences, start, end, i - 1) : 0;
+    const prefetch = chunksFrom(state.sentences, end + 1, PREFETCH_CHUNKS);
+    const res = await send({ type: 'speak', seq, text: chunkText(state.sentences, start, end), prefetch, startAt });
     if (res?.error && seq === state.seq) fail(res.error);
+  }
+
+  // A cached clip holding sentence `i` ([start, end]), preferring the one that starts nearest it:
+  // the regular clip, or one that began after a jump inside it.
+  async function cachedClip(i) {
+    const [first, end] = chunkBounds(state.sentences, i);
+    const clips = [];
+    for (let start = i; start >= first; start--) clips.push([start, end]);
+    const res = await send({ type: 'cached', texts: clips.map(([start]) => chunkText(state.sentences, start, end)) });
+    return clips[res?.index] ?? null;
   }
 
   function followProgress(time, duration) {

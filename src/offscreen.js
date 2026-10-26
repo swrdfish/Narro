@@ -1,13 +1,18 @@
 // Offscreen document: synthesizes and plays audio. Driven by the background service worker.
 import { synthesize, cacheKey } from './engines.js';
 import { recognizeKindle, cancelKindle } from './kindle-ocr.js';
-import { LEVEL_BANDS, bandLevels } from './levels.js';
+import { LEVEL_BANDS, bandLevels, quietestTime } from './levels.js';
 
-const CACHE_LIMIT = 12;
+// Clips kept so going back (or reading on after a jump) replays them instead of synthesizing
+// again: a few pages' worth, and at most CACHE_BYTES of audio (in-browser voices make WAV, about
+// 3 MB a minute). The least recently played go first.
+const CACHE_LIMIT = 80;
+const CACHE_BYTES = 64 * 1024 * 1024;
 // Seconds of audio (at the current speed) left when 'nearly-ended' is sent, so the reader can
 // prepare what comes next (e.g. turn a Kindle page) while the sentence finishes.
 const NEARLY_ENDED_LEAD = 1.5;
-const cache = new Map(); // key -> Promise<Blob>
+const cache = new Map(); // key -> Promise<Blob>, least recently used first
+const sizes = new Map(); // key -> bytes, once the clip is ready
 
 const audio = new Audio();
 audio.preservesPitch = true;
@@ -31,13 +36,40 @@ for (const [key, action] of Object.entries(MEDIA_ACTIONS)) {
 function getAudio(settings, text, onStatus) {
   const key = `${cacheKey(settings)}|${text}`;
   let p = cache.get(key);
-  if (!p) {
+  if (p) {
+    cache.delete(key); // move to the most recent end
+  } else {
     p = synthesize(settings, text, { onStatus });
-    p.catch(() => cache.delete(key));
-    cache.set(key, p);
-    while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
+    p.then((blob) => {
+      if (cache.get(key) !== p) return;
+      sizes.set(key, blob.size);
+      trimCache();
+    }, () => cache.get(key) === p && forget(key));
   }
+  cache.set(key, p);
+  trimCache();
   return p;
+}
+
+function forget(key) {
+  cache.delete(key);
+  sizes.delete(key);
+}
+
+function trimCache() {
+  let bytes = 0;
+  for (const size of sizes.values()) bytes += size;
+  for (const key of cache.keys()) {
+    if (cache.size <= CACHE_LIMIT && bytes <= CACHE_BYTES) break;
+    if (cache.size === 1) break; // the clip just asked for stays, however large
+    bytes -= sizes.get(key) || 0;
+    forget(key);
+  }
+}
+
+/** Index of the first of `texts` that is cached (or being synthesized), or -1. */
+function firstCached(settings, texts) {
+  return texts.findIndex((text) => cache.has(`${cacheKey(settings)}|${text}`));
 }
 
 // The visualizer's levels for a clip: decoded and band-pass filtered offline, so the audio element
@@ -79,7 +111,9 @@ function stopAudio() {
   current = null;
 }
 
-async function speak({ tabId, seq, text, prefetch = [], settings }) {
+// `startAt` (0–1): start partway into the clip, at the pause nearest that point, when a jump lands
+// on a sentence inside a cached clip.
+async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 }) {
   stopAudio();
   current = { tabId, seq };
   const token = current;
@@ -112,6 +146,16 @@ async function speak({ tabId, seq, text, prefetch = [], settings }) {
         emit(tabId, seq, 'nearly-ended');
       }
     };
+    if (startAt > 0) {
+      await new Promise((resolve) => {
+        audio.addEventListener('loadedmetadata', resolve, { once: true });
+        audio.addEventListener('error', resolve, { once: true });
+      });
+      const levels = await clipLevels(blob).catch(() => null);
+      if (current !== token) return;
+      const time = startAt * audio.duration;
+      if (Number.isFinite(time)) audio.currentTime = levels ? quietestTime(levels, time) : time;
+    }
     if (token.paused) return; // resume() will start it
     await audio.play();
     emit(tabId, seq, 'started');
@@ -132,6 +176,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'speak':
       speak(msg);
       break;
+    case 'cached':
+      sendResponse({ index: firstCached(msg.settings, msg.texts) });
+      return;
     case 'prefetch':
       // Warm the cache, one at a time, without interrupting what's playing.
       (async () => {
