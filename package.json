@@ -1,6 +1,6 @@
 {
   "name": "narro",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Chrome extension that reads web pages aloud with AI voices, in the cloud or entirely in your browser.",
   "license": "MIT",
   "keywords": [
