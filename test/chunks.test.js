@@ -82,27 +82,31 @@ function fixture(engine = 'openai', { cached = [] } = {}) {
   return { dom, window, message, speaks, pos, highlighted };
 }
 
-test('OpenAI: one sentence to start, then the rest in one request, with the highlight following progress', async () => {
+test('OpenAI: two single sentences to start, then the rest in one request, with the highlight following progress', async () => {
   const context = fixture();
   try {
     context.message({ type: 'control', action: 'toggle' });
     await wait(50);
     const first = context.speaks().at(-1);
     assert.equal(first.text, 'Boats left early.');
-    assert.deepEqual(Array.from(first.prefetch), ['Gulls stayed behind. Wind rose by noon. Rain came later.']);
+    assert.deepEqual(Array.from(first.prefetch), ['Gulls stayed behind.', 'Wind rose by noon. Rain came later.']);
 
     context.message({ type: 'tts-event', event: 'started', seq: first.seq });
     context.message({ type: 'tts-event', event: 'ended', seq: first.seq });
     await wait(20);
-    const chunk = context.speaks().at(-1);
-    assert.equal(chunk.text, 'Gulls stayed behind. Wind rose by noon. Rain came later.', 'matches the prefetched text, so it is cached');
+    const second = context.speaks().at(-1);
+    assert.equal(second.text, 'Gulls stayed behind.', 'matches the prefetched text, so it is cached');
     assert.equal(context.pos(), '2 / 4');
-    assert.equal(context.highlighted(), 'Gulls stayed behind.');
 
-    context.message({ type: 'tts-event', event: 'started', seq: chunk.seq });
-    context.message({ type: 'tts-event', event: 'progress', seq: chunk.seq, time: 5, duration: 10 });
+    context.message({ type: 'tts-event', event: 'started', seq: second.seq });
+    context.message({ type: 'tts-event', event: 'ended', seq: second.seq });
+    await wait(20);
+    const chunk = context.speaks().at(-1);
+    assert.equal(chunk.text, 'Wind rose by noon. Rain came later.');
     assert.equal(context.pos(), '3 / 4');
     assert.equal(context.highlighted(), 'Wind rose by noon.');
+
+    context.message({ type: 'tts-event', event: 'started', seq: chunk.seq });
     context.message({ type: 'tts-event', event: 'progress', seq: chunk.seq, time: 9.5, duration: 10 });
     assert.equal(context.pos(), '4 / 4');
     assert.equal(context.highlighted(), 'Rain came later.');
@@ -123,8 +127,10 @@ test('going back into a cached clip plays it from that sentence instead of synth
   try {
     context.message({ type: 'control', action: 'toggle' });
     await wait(50);
-    context.message({ type: 'tts-event', event: 'ended', seq: context.speaks().at(-1).seq });
-    await wait(20);
+    for (let clip = 0; clip < 2; clip++) {
+      context.message({ type: 'tts-event', event: 'ended', seq: context.speaks().at(-1).seq });
+      await wait(20);
+    }
     const chunk = context.speaks().at(-1);
     context.message({ type: 'tts-event', event: 'started', seq: chunk.seq });
     context.message({ type: 'tts-event', event: 'progress', seq: chunk.seq, time: 9.5, duration: 10 });

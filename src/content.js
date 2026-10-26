@@ -13,6 +13,9 @@ const EARLY_TURN_LEAD = 1.5;
 // Clips synthesized ahead of the one playing (up to 16 sentences, usually a minute or more), so a
 // slow or briefly lost connection doesn't stop the reading.
 const PREFETCH_CHUNKS = 4;
+// Clips of one sentence when starting or jumping. The second is ready long before the first ends,
+// and the full clip after it is synthesized while that plays, so there's no wait between them.
+const QUICK_START_CLIPS = 2;
 
 if (!window.__aiReader) {
   window.__aiReader = true;
@@ -31,6 +34,7 @@ function main() {
     picking: false, // choosing a start sentence with the mouse
     preparing: false,
     sourceInfo: '',
+    quick: 0, // one-sentence clips still to come after a start or jump
   };
   let preparation;
   // The user turned the page (or resized the window) themselves. The reader's own page turn is
@@ -152,11 +156,11 @@ function main() {
   // System voices don't report playback progress, so they get one sentence per request.
   const singleSentence = () => state.settings?.engine === 'system';
 
-  // The next `count` chunks starting at sentence `from`, as text.
-  function chunksFrom(sentences, from, count) {
+  // The next `count` chunks starting at sentence `from`, as text; the first `quick` are one sentence.
+  function chunksFrom(sentences, from, count, quick = 0) {
     const texts = [];
     for (let start = from; texts.length < count && start < sentences.length;) {
-      const end = chunkEnd(sentences, start, { single: singleSentence() });
+      const end = chunkEnd(sentences, start, { first: texts.length < quick, single: singleSentence() });
       texts.push(chunkText(sentences, start, end));
       start = end + 1;
     }
@@ -164,7 +168,7 @@ function main() {
   }
 
   // Speaks sentences from `i` as one clip (a chunk); the highlight follows playback progress.
-  // `first`: starting or jumping, so begin with a single sentence for a quick start.
+  // `first`: starting or jumping, so begin with single sentences (QUICK_START_CLIPS) for a quick start.
   // Open while reading: when this page is refreshed or closed, Chrome closes the port and the
   // background stops the audio. Reconnects if the background restarted in the meantime.
   let lifeline = null;
@@ -188,8 +192,10 @@ function main() {
     if (i < 0 || i >= state.sentences.length) return finish();
     state.idx = i;
     rememberPosition();
+    const quick = first || state.quick > 0;
+    state.quick = first ? QUICK_START_CLIPS - 1 : Math.max(0, state.quick - 1);
     let start = i;
-    let end = chunkEnd(state.sentences, i, { first, single: singleSentence() });
+    let end = chunkEnd(state.sentences, i, { first: quick, single: singleSentence() });
     state.chunk = { start, end };
     const seq = ++state.seq;
     ui.newClip();
@@ -199,11 +205,14 @@ function main() {
       // Jumping into a clip that's still cached (going back, say): play it from this sentence.
       const clip = await cachedClip(i);
       if (seq !== state.seq) return;
-      if (clip) [start, end] = clip;
+      if (clip) {
+        [start, end] = clip;
+        state.quick = 0; // the clips after a cached one are likely cached too
+      }
       state.chunk = { start, end };
     }
     const startAt = start < i ? sentenceEndFraction(state.sentences, start, end, i - 1) : 0;
-    const prefetch = chunksFrom(state.sentences, end + 1, PREFETCH_CHUNKS);
+    const prefetch = chunksFrom(state.sentences, end + 1, PREFETCH_CHUNKS, state.quick);
     const res = await send({ type: 'speak', seq, text: chunkText(state.sentences, start, end), prefetch, startAt });
     if (res?.error && seq === state.seq) fail(res.error);
   }
@@ -320,6 +329,7 @@ function main() {
     if (result.pageChanged) return readNewPage(); // the user turned the page during our own turn
     if (result.error) return fail(result.error);
     state.sentences = result.sentences;
+    state.quick = 0;
     play(0, { first: false }); // its first chunk was prefetched while the last page finished
   }
 
