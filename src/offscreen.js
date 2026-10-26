@@ -19,6 +19,15 @@ function emit(tabId, seq, event, extra = {}) {
   chrome.runtime.sendMessage({ target: 'background', type: 'tts-event', tabId, seq, event, ...extra });
 }
 
+// Media keys (and Chrome's media controls) act on this document's audio. Left to Chrome they'd
+// pause it behind the reader's back, so hand them to the reading tab like its own buttons.
+const MEDIA_ACTIONS = { play: 'toggle', pause: 'toggle', stop: 'stop', previoustrack: 'prev', nexttrack: 'next' };
+for (const [key, action] of Object.entries(MEDIA_ACTIONS)) {
+  navigator.mediaSession?.setActionHandler(key, () => {
+    if (current) chrome.runtime.sendMessage({ type: 'remote-control', action });
+  });
+}
+
 function getAudio(settings, text, onStatus) {
   const key = `${cacheKey(settings)}|${text}`;
   let p = cache.get(key);
