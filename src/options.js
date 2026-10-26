@@ -1,5 +1,5 @@
 import {
-  getSettings, saveSettings, OPENAI_VOICES, GEMINI_VOICES, KITTEN_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
+  getSettings, saveSettings, ENGINE_ORIGINS, PENDING_ENGINE_KEY, OPENAI_VOICES, GEMINI_VOICES, KITTEN_VOICES, KOKORO_VOICES, SUPERTONIC_VOICES, SUPERTONIC_LANGUAGES,
 } from './settings.js';
 import { PAGE_SHORTCUTS, shortcutKeys } from './shortcuts.js';
 import { enhanceSelects } from './select.js';
@@ -7,16 +7,6 @@ import { enhanceSelects } from './select.js';
 const $ = (sel) => document.querySelector(sel);
 let settings;
 
-// Network access is optional: Chrome asks only when someone selects an engine that needs it.
-// This keeps a fresh install's permission prompt focused on reading the current tab. In-browser
-// voices need no prompt: Hugging Face allows the model downloads from any origin.
-const ENGINE_ORIGINS = {
-  openai: ['https://api.openai.com/*'],
-  elevenlabs: ['https://api.elevenlabs.io/*'],
-  gemini: ['https://generativelanguage.googleapis.com/*'],
-  openrouter: ['https://openrouter.ai/*'],
-  localServer: ['http://localhost/*', 'http://127.0.0.1/*'],
-};
 const ENGINE_SERVICES = {
   openai: 'OpenAI',
   elevenlabs: 'ElevenLabs',
@@ -30,7 +20,13 @@ async function ensureEngineAccess(engine) {
   const origins = ENGINE_ORIGINS[engine];
   if (!origins) return true;
   if (await chrome.permissions.contains({ origins })) return true;
+  // Chrome closes the popup while it asks, so this page may not see the answer: save what's been
+  // edited, and leave the choice for the background to apply once access is granted.
+  clearTimeout(saveTimer);
+  saveSettings(settings);
+  chrome.storage.session.set({ [PENDING_ENGINE_KEY]: engine });
   const granted = await chrome.permissions.request({ origins });
+  chrome.storage.session.remove(PENDING_ENGINE_KEY);
   if (!granted) setStatus(`Narro needs access to ${ENGINE_SERVICES[engine]} to use this voice.`, true);
   return granted;
 }

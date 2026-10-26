@@ -58,6 +58,20 @@ export const DEFAULT_SETTINGS = {
   },
 };
 
+// Network access is optional: Chrome asks only when someone selects an engine that needs it.
+// This keeps a fresh install's permission prompt focused on reading the current tab. In-browser
+// voices need no prompt: Hugging Face allows the model downloads from any origin.
+export const ENGINE_ORIGINS = {
+  openai: ['https://api.openai.com/*'],
+  elevenlabs: ['https://api.elevenlabs.io/*'],
+  gemini: ['https://generativelanguage.googleapis.com/*'],
+  openrouter: ['https://openrouter.ai/*'],
+  localServer: ['http://localhost/*', 'http://127.0.0.1/*'],
+};
+
+// The engine chosen in the popup while Chrome asks for its access (in chrome.storage.session).
+export const PENDING_ENGINE_KEY = 'pendingEngine';
+
 export const ENGINES = {
   openai: { label: 'OpenAI', kind: 'cloud' },
   elevenlabs: { label: 'ElevenLabs', kind: 'cloud' },

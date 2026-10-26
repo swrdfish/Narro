@@ -1,6 +1,6 @@
 // Service worker: routes messages between the page (content script), the offscreen audio
 // player, and chrome.tts. Kept stateless apart from chrome.storage.session so it survives restarts.
-import { getSettings } from './settings.js';
+import { getSettings, saveSettings, ENGINE_ORIGINS, PENDING_ENGINE_KEY } from './settings.js';
 import { READER_STATE_KEY, nextReaderState, badgeFor } from './reader-state.js';
 import { captureKindle } from './kindle-capture.js';
 import { isKindleUrl } from './kindle-data.js';
@@ -225,4 +225,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (tab?.id == null) return;
   const mode = { 'read-from-here': 'from-selection', 'pick-start': 'pick' }[info.menuItemId];
   if (mode) startReading(tab.id, mode).catch(() => {});
+});
+
+// Choosing a cloud engine in the popup asks for access to its API, and Chrome closes the popup
+// while it asks. Once access is granted, switch to the engine that was chosen.
+chrome.permissions.onAdded.addListener(async () => {
+  const { [PENDING_ENGINE_KEY]: engine } = await chrome.storage.session.get(PENDING_ENGINE_KEY);
+  const origins = ENGINE_ORIGINS[engine];
+  if (!origins || !(await chrome.permissions.contains({ origins }))) return;
+  await chrome.storage.session.remove(PENDING_ENGINE_KEY);
+  const settings = await getSettings();
+  if (settings.engine !== engine) await saveSettings({ ...settings, engine });
 });
