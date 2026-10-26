@@ -199,6 +199,7 @@ function main() {
     state.chunk = { start, end };
     const seq = ++state.seq;
     ui.newClip();
+    if (first) ui.setBuffer({ total: 1 }); // empty until the offscreen document reports
     setStatus('loading');
     highlight(i);
     if (first && !singleSentence()) {
@@ -624,6 +625,9 @@ function main() {
       case 'levels':
         ui.setLevels(msg.levels);
         break;
+      case 'buffer':
+        ui.setBuffer(msg);
+        break;
       case 'ended': {
         if (state.status === 'paused') break;
         const next = state.chunk.end + 1;
@@ -742,8 +746,12 @@ function createPlayer(h) {
       /* Voice visualizer: bars follow the loudness of the clip in a few frequency bands. */
       .viz { display: flex; align-items: center; justify-content: center; gap: 2px; width: 24px; height: 32px; margin-left: 2px; }
       .viz i { width: 3px; height: 18px; border-radius: 2px; background: #4fb56e; transform: scaleY(.17); transform-origin: center; }
+      /* Buffer gauge: how much of what comes next is ready, filling from the bottom. */
+      .buffer { position: relative; width: 4px; height: 18px; margin: 0 1px 0 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+      .buffer b { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--muted); transition: height .3s ease; }
+      .buffer.off { visibility: hidden; }
       /* Fixed size so status changes never resize (and re-center) the bar. */
-      .info { width: 214px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.3; transition: opacity .14s ease; }
+      .info { width: 205px; height: 32px; padding: 0 6px; display: flex; align-items: center; color: var(--muted); font-size: 12px; line-height: 1.3; transition: opacity .14s ease; }
       .info .text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
       .info.fading { opacity: 0; }
       .info.placeholder { opacity: .75; }
@@ -801,6 +809,7 @@ function createPlayer(h) {
       <button class="small faster" title="Faster"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
       <span class="sep"></span>
       <span class="viz" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="buffer" role="meter" aria-label="Buffered speech" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><b></b></span>
       <span class="info"><span class="text"></span></span>
       <button class="pick" title="Choose where to start: click any sentence"><svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zm-6-4a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></button>
       <button class="settings" title="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
@@ -1078,6 +1087,17 @@ function createPlayer(h) {
       clip.time = time;
       if (clip.at !== null) clip.at = performance.now();
     },
+    // `ready` of the `total` clips after the playing one are ready, holding `seconds` of speech.
+    setBuffer({ ready = 0, total = 0, seconds = 0 } = {}) {
+      const gauge = $('.buffer');
+      const fraction = total ? ready / total : 1; // nothing after this clip: all of it is ready
+      gauge.querySelector('b').style.height = `${Math.round(fraction * 100)}%`;
+      const text = !total ? 'Buffered to the end'
+        : `Buffered ahead: ${Math.round(seconds)} s of speech${ready < total ? ', loading more' : ''}`;
+      gauge.title = text;
+      gauge.setAttribute('aria-valuenow', fraction.toFixed(2));
+      gauge.setAttribute('aria-valuetext', text);
+    },
     show() {
       if (!host.isConnected) document.documentElement.append(host);
       ui.visible = true;
@@ -1114,6 +1134,7 @@ function createPlayer(h) {
       $('.pos').textContent = s.sentences.length ? `${s.idx + 1} / ${s.sentences.length}` : '– / –';
       $('.rate').textContent = `${s.rate.toFixed(1)}×`;
       $('.pick').classList.toggle('active', s.picking);
+      $('.buffer').classList.toggle('off', s.settings?.engine === 'system'); // speaks as it goes
       if (s.settings) $('.settings').title = `Settings — voice: ${ENGINES[s.settings.engine]?.label}`;
       if (!info.text) paintInfo(); // the placeholder may have changed
     },

@@ -13,11 +13,13 @@ const CACHE_BYTES = 64 * 1024 * 1024;
 const NEARLY_ENDED_LEAD = 1.5;
 const cache = new Map(); // key -> Promise<Blob>, least recently used first
 const sizes = new Map(); // key -> bytes, once the clip is ready
+const durations = new Map(); // key -> seconds, once the clip is decoded
+const keyOf = (settings, text) => `${cacheKey(settings)}|${text}`;
 
 const audio = new Audio();
 audio.preservesPitch = true;
 
-let current = null; // { tabId, seq, url }
+let current = null; // { tabId, seq, url, ahead: keys of the clips that follow }
 let rate = 1;
 
 function emit(tabId, seq, event, extra = {}) {
@@ -34,7 +36,7 @@ for (const [key, action] of Object.entries(MEDIA_ACTIONS)) {
 }
 
 function getAudio(settings, text, onStatus) {
-  const key = `${cacheKey(settings)}|${text}`;
+  const key = keyOf(settings, text);
   let p = cache.get(key);
   if (p) {
     cache.delete(key); // move to the most recent end
@@ -44,6 +46,13 @@ function getAudio(settings, text, onStatus) {
       if (cache.get(key) !== p) return;
       sizes.set(key, blob.size);
       trimCache();
+      reportBuffer();
+      // Its length, for the buffer gauge; the levels are kept for when it plays.
+      clipLevels(blob).then((levels) => {
+        if (cache.get(key) !== p) return;
+        durations.set(key, levels.data.length / levels.bands / levels.fps);
+        reportBuffer();
+      }, () => {});
     }, () => cache.get(key) === p && forget(key));
   }
   cache.set(key, p);
@@ -54,6 +63,22 @@ function getAudio(settings, text, onStatus) {
 function forget(key) {
   cache.delete(key);
   sizes.delete(key);
+  durations.delete(key);
+}
+
+// Tells the reader how much of what follows the playing clip is ready: clips in a row from the
+// next one, and their seconds of speech.
+function reportBuffer() {
+  const token = current;
+  if (!token?.ahead) return;
+  let ready = 0;
+  let seconds = 0;
+  for (const key of token.ahead) {
+    if (!sizes.has(key)) break;
+    ready++;
+    seconds += durations.get(key) || 0;
+  }
+  emit(token.tabId, token.seq, 'buffer', { ready, total: token.ahead.length, seconds });
 }
 
 function trimCache() {
@@ -69,7 +94,7 @@ function trimCache() {
 
 /** Index of the first of `texts` that is cached (or being synthesized), or -1. */
 function firstCached(settings, texts) {
-  return texts.findIndex((text) => cache.has(`${cacheKey(settings)}|${text}`));
+  return texts.findIndex((text) => cache.has(keyOf(settings, text)));
 }
 
 // The visualizer's levels for a clip: decoded and band-pass filtered offline, so the audio element
@@ -115,10 +140,14 @@ function stopAudio() {
 // on a sentence inside a cached clip.
 async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 }) {
   stopAudio();
-  current = { tabId, seq };
+  current = { tabId, seq, ahead: prefetch.map((t) => keyOf(settings, t)) };
   const token = current;
   rate = settings.rate;
   const onStatus = (status) => emit(tabId, seq, 'status', { status });
+  reportBuffer();
+  // Not ready yet (starting, or synthesis fell behind): buffer before playing, below.
+  const buffering = !sizes.has(keyOf(settings, text)) && prefetch.length > 0;
+  if (buffering) onStatus('Buffering…');
   try {
     const blob = await getAudio(settings, text, onStatus);
     if (current !== token) return; // superseded while synthesizing
@@ -129,6 +158,11 @@ async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 })
         await getAudio(settings, t).catch(() => {});
       }
     })();
+    // Wait for the clip after this one too, so playback doesn't stop again as soon as this ends.
+    if (buffering) {
+      await getAudio(settings, prefetch[0]).catch(() => {});
+      if (current !== token) return;
+    }
     token.url = URL.createObjectURL(blob);
     audio.src = token.url;
     // Usually ready before the clip starts; if not, the bars join in when it is.
