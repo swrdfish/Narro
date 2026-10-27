@@ -92,7 +92,7 @@ function systemSpeak(tabId, seq, text, settings) {
 
 // --- Message handling ---------------------------------------------------------------------------
 
-async function handleFromTab(msg, tabId) {
+async function handleFromTab(msg, tabId, title) {
   if (['pause', 'resume', 'rate', 'stop'].includes(msg.type)) {
     const { readerTab } = await chrome.storage.session.get('readerTab');
     if (readerTab != null && readerTab !== tabId) return { ok: true, resumed: false };
@@ -107,7 +107,7 @@ async function handleFromTab(msg, tabId) {
         systemSpeak(tabId, msg.seq, msg.text, settings);
       } else {
         chrome.tts.stop();
-        await toOffscreen({ cmd: 'speak', tabId, seq: msg.seq, text: msg.text, prefetch: msg.prefetch, startAt: msg.startAt, settings });
+        await toOffscreen({ cmd: 'speak', tabId, seq: msg.seq, text: msg.text, prefetch: msg.prefetch, startAt: msg.startAt, title, settings });
       }
       return { ok: true };
     case 'cached':
@@ -190,7 +190,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (sender.tab) {
-    handleFromTab(msg, sender.tab.id).then(sendResponse, (e) => sendResponse({ error: e.message }));
+    handleFromTab(msg, sender.tab.id, sender.tab.title).then(sendResponse, (e) => sendResponse({ error: e.message }));
     return true;
   }
 });

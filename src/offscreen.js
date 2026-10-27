@@ -44,6 +44,29 @@ function silence(seconds, sampleRate = 8000) {
   return new Blob([wav], { type: 'audio/wav' });
 }
 
+// Chrome takes artwork only from http(s), data and blob URLs, not chrome-extension:// ones.
+let artwork = null;
+fetch('icons/icon-128.png')
+  .then((response) => response.blob())
+  .then((blob) => (artwork = URL.createObjectURL(blob)), () => {});
+
+// What macOS's Now Playing (and other system media controls) show: the page being read, rather
+// than this document's address and the silent loop's progress.
+function showNowPlaying(title) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: title ? `Narro: ${title}` : 'Narro',
+    artist: 'Narro',
+    artwork: artwork ? [{ src: artwork, sizes: '128x128', type: 'image/png' }] : [],
+  });
+}
+
+function showPosition() {
+  if (!Number.isFinite(audio.duration)) return;
+  try {
+    navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: Math.min(audio.currentTime, audio.duration) });
+  } catch {}
+}
+
 let current = null; // { tabId, seq, url, ahead: keys of the clips that follow }
 let rate = 1;
 
@@ -164,7 +187,7 @@ function stopAudio() {
 
 // `startAt` (0–1): start partway into the clip, at the pause nearest that point, when a jump lands
 // on a sentence inside a cached clip.
-async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 }) {
+async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0, title }) {
   stopAudio();
   current = { tabId, seq, ahead: prefetch.map((t) => keyOf(settings, t)) };
   const token = current;
@@ -200,6 +223,7 @@ async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 })
       if (current !== token || !Number.isFinite(audio.duration)) return;
       // Lets the reader move the highlight through a clip that holds several sentences.
       emit(tabId, seq, 'progress', { time: audio.currentTime, duration: audio.duration });
+      showPosition();
       if (token.nearlyEnded) return;
       if ((audio.duration - audio.currentTime) / audio.playbackRate <= NEARLY_ENDED_LEAD) {
         token.nearlyEnded = true;
@@ -220,6 +244,8 @@ async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 })
     // The silent loop first: started after a short clip, Chrome takes the pair for a short sound.
     await keysHolder.play().catch(() => {});
     await audio.play();
+    showNowPlaying(title);
+    showPosition();
     emit(tabId, seq, 'started');
   } catch (e) {
     if (current === token) emit(tabId, seq, 'error', { message: e.message, detail: e.detail });
@@ -270,9 +296,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'rate':
       rate = msg.rate;
       audio.playbackRate = rate;
+      showPosition();
       break;
     case 'stop':
       stopAudio();
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setPositionState();
       break;
     case 'clear-cache':
       cache.clear();
