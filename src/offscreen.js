@@ -19,6 +19,31 @@ const keyOf = (settings, text) => `${cacheKey(settings)}|${text}`;
 const audio = new Audio();
 audio.preservesPitch = true;
 
+// Chrome gives the media keys only to audio at least 5 s long, and a one-sentence clip is often
+// shorter. A silent loop that plays and pauses with the speech keeps the keys with Narro.
+const keysHolder = new Audio(URL.createObjectURL(silence(10)));
+keysHolder.loop = true;
+
+function silence(seconds, sampleRate = 8000) {
+  const length = seconds * sampleRate;
+  const wav = new DataView(new ArrayBuffer(44 + length));
+  const text = (offset, value) => [...value].forEach((c, i) => wav.setUint8(offset + i, c.charCodeAt(0)));
+  text(0, 'RIFF');
+  wav.setUint32(4, 36 + length, true);
+  text(8, 'WAVEfmt ');
+  wav.setUint32(16, 16, true);
+  wav.setUint16(20, 1, true); // PCM
+  wav.setUint16(22, 1, true); // mono
+  wav.setUint32(24, sampleRate, true);
+  wav.setUint32(28, sampleRate, true); // bytes per second
+  wav.setUint16(32, 1, true); // bytes per frame
+  wav.setUint16(34, 8, true); // bits per sample
+  text(36, 'data');
+  wav.setUint32(40, length, true);
+  for (let i = 0; i < length; i++) wav.setUint8(44 + i, 128); // 8-bit silence
+  return new Blob([wav], { type: 'audio/wav' });
+}
+
 let current = null; // { tabId, seq, url, ahead: keys of the clips that follow }
 let rate = 1;
 
@@ -132,6 +157,7 @@ function stopAudio() {
   audio.onerror = null;
   audio.ontimeupdate = null;
   audio.pause();
+  keysHolder.pause();
   if (current?.url) URL.revokeObjectURL(current.url);
   current = null;
 }
@@ -191,6 +217,8 @@ async function speak({ tabId, seq, text, prefetch = [], settings, startAt = 0 })
       if (Number.isFinite(time)) audio.currentTime = levels ? quietestTime(levels, time) : time;
     }
     if (token.paused) return; // resume() will start it
+    // The silent loop first: started after a short clip, Chrome takes the pair for a short sound.
+    await keysHolder.play().catch(() => {});
     await audio.play();
     emit(tabId, seq, 'started');
   } catch (e) {
@@ -222,13 +250,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'pause':
       if (current) current.paused = true;
       audio.pause();
+      keysHolder.pause();
       break;
     case 'resume':
       // If the document was recreated (or the sentence is gone), the caller must re-speak.
       if (current && current.seq === msg.seq) {
         const c = current;
         c.paused = false;
-        if (c.url) audio.play().then(() => emit(c.tabId, c.seq, 'started'));
+        if (c.url) {
+          keysHolder.play().catch(() => {})
+            .then(() => audio.play())
+            .then(() => emit(c.tabId, c.seq, 'started'));
+        }
         sendResponse({ resumed: true });
       } else {
         sendResponse({ resumed: false });
