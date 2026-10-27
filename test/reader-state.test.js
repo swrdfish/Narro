@@ -40,6 +40,7 @@ test('the page reports starting, reading, paused and stopped, without repeats', 
   window.Range.prototype.getClientRects = () => [window.Range.prototype.getBoundingClientRect()];
   window.chrome = {
     runtime: {
+      id: 'narro',
       onMessage: { addListener: (listener) => listeners.add(listener), removeListener: (listener) => listeners.delete(listener) },
       sendMessage: async (message) => { messages.push(message); return { ok: true, resumed: true }; },
     },

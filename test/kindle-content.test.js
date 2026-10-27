@@ -25,6 +25,7 @@ function fixture({ store = { settings: { engine: 'system' } } } = {}) {
   page.getBoundingClientRect = () => ({ left: 50, top: 50, width: 400, height: 500 });
   window.chrome = {
     runtime: {
+      id: 'narro',
       onMessage: { addListener: (listener) => listeners.add(listener), removeListener: (listener) => listeners.delete(listener) },
       sendMessage: async (message) => {
         messages.push(message);

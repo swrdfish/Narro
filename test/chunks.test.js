@@ -66,6 +66,7 @@ function fixture(engine = 'openai', { cached = [] } = {}) {
   window.Element.prototype.attachShadow = function (options) { return attachShadow.call(this, { ...options, mode: 'open' }); };
   window.chrome = {
     runtime: {
+      id: 'narro',
       onMessage: { addListener: (listener) => listeners.add(listener), removeListener: (listener) => listeners.delete(listener) },
       sendMessage: async (message) => {
         messages.push(message);

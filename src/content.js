@@ -133,8 +133,20 @@ function main() {
 
   // --- Playback ---------------------------------------------------------------------------------
 
+  // After the extension is updated or reloaded (Chrome does this while it's idle), this script can
+  // no longer reach it: sendMessage would throw, leaving the player stuck.
+  const connected = () => !!chrome.runtime?.id;
   function send(msg) {
+    if (!connected()) return Promise.resolve({ error: 'Narro was updated or reloaded.' });
     return chrome.runtime.sendMessage(msg).catch((e) => ({ error: e.message }));
+  }
+
+  // Stops this player for good and says how to carry on: the toolbar button or a shortcut starts
+  // the updated Narro, which replaces it.
+  function disconnected() {
+    stop();
+    ui.show();
+    ui.setInfo('Narro was updated. Start reading again from its toolbar button.', true);
   }
 
   // --- Where reading left off on this page ---
@@ -186,6 +198,7 @@ function main() {
   }
 
   async function play(i, { first = true } = {}) {
+    if (!connected()) return disconnected();
     if (state.preparing) return;
     holdLifeline();
     if (kindle && i === state.sentences.length && i > 0 && state.settings?.autoTurnPages) return nextKindlePage();
@@ -382,6 +395,7 @@ function main() {
   }
 
   async function start(fromSelection = false) {
+    if (!connected()) return disconnected();
     if (!(await prepare())) return;
     let i = selectionStart();
     let resumed = false;
@@ -454,6 +468,7 @@ function main() {
   let hoverFrame = 0; // pending requestAnimationFrame for the hover preview
 
   async function startPick() {
+    if (!connected()) return disconnected();
     if (state.preparing) return;
     if (state.picking) return cancelPick();
     // Keep the current reading list while reading so the position stays valid.
@@ -667,6 +682,15 @@ function main() {
       }
       ui.render();
     });
+  });
+
+  // A script left from before an update gives way to this one: the old player goes, quietly.
+  document.dispatchEvent(new CustomEvent('narro-replaced'));
+  document.querySelectorAll('#ai-reader-host').forEach((old) => old.remove()); // older versions
+  document.addEventListener('narro-replaced', () => {
+    cancelPick();
+    stop({ report: false });
+    ui.hide();
   });
 
   // --- Floating player --------------------------------------------------------------------------
